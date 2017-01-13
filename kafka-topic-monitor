@@ -1,0 +1,412 @@
+#!/usr/bin/ruby
+
+require 'kafka'
+require 'optparse'
+require 'ostruct'
+
+class TopicDataRetriever
+
+  def initialize(kafka)
+    @kafka = kafka
+  end
+
+  def get_topic_offsets
+    result = {}
+
+    # Until https://github.com/zendesk/ruby-kafka/issues/311 is fixed, get into ruby-kafka guts and get cluster instance from there
+    cluster = @kafka.instance_variable_get("@cluster")
+
+    topics = cluster.topics
+    cluster.add_target_topics topics
+    topics.each {|topic|
+      partitions = cluster.partitions_for(topic)
+      ids = partitions.collect(&:partition_id)
+      offsets = cluster.resolve_offsets(topic, ids, :latest)
+      result[topic] = offsets
+    }
+    result
+  end
+
+end
+
+# Structure of the __consumer_offsets topic is derived from Kafka's code:
+#   https://github.com/apache/kafka/blob/6d6c77a7a9c102f7508e4bc48e0d6eba1fcbc9c6/core/src/main/scala/kafka/coordinator/GroupMetadataManager.scala
+#
+# Note that at the moment we are only using topic offset data and completely ignoring group metadata even
+# though GroupMetadata + GroupMember + GroupMetadataDecoder classes were created. May add that later
+
+class GroupTopicPartition
+  attr_reader :group, :topic, :partition
+  def initialize(group, topic, partition)
+    @group = group
+    @topic = topic
+    @partition = partition
+  end
+end
+
+class Group
+  attr_reader :group
+  def initialize(group)
+    @group = group
+  end
+end
+
+class Offset
+  attr_reader :offset
+  def initialize(offset)
+    @offset = offset
+  end
+end
+
+class GroupMetadata
+  def initialize(protocol_type, generation, protocol, leader, members)
+    @protocol_type = protocol_type
+    @generation = generation
+    @protocol = protocol
+    @leader = leader
+    @members = members
+  end
+end
+
+class GroupMember
+  def initialize(member_id:, client_id:, client_host:, rebalance_timeout:, session_timeout:, subscription:, assignment:)
+    @member_id = member_id
+    @client_id = client_id
+    @client_host = client_host
+    @rebalance_timeout = rebalance_timeout
+    @session_timeout = session_timeout
+  end
+end
+
+class KeyDecoder
+  def self.decode(value)
+    decoder = Kafka::Protocol::Decoder.from_string(value)
+    schema = decoder.int16
+    if schema == 0 || schema == 1 then
+      # Offset
+      # group (string), topic (string), partition (int32)
+      GroupTopicPartition.new decoder.string, decoder.string, decoder.int32
+    elsif schema == 2
+      # Group metadata
+      Group.new decoder.string
+    else
+      # Unknown
+      nil
+    end
+  end
+end
+
+class OffsetDecoder
+  def self.decode(value)
+    return nil if value.nil?
+    decoder = Kafka::Protocol::Decoder.from_string(value)
+    schema = decoder.int16
+    if schema == 0 || schema == 1 then
+      # Strucutre for schema=0:
+      #   offset (int64), metadata (string), timestamp (int64)
+      # Strucutre for schema=1:
+      #   offset (int64), metadata (string), commit_timestamp (int64), expire_timestamp (int64)
+
+      # We do not care about metadata or timestamp so lets handle both schemas the same way
+      Offset.new decoder.int64
+    else
+      # Unknown
+      raise "Unknown offset value schema #{schema}"
+    end
+  end
+end
+
+class GroupMetadataDecoder
+  def self.decode(value)
+    return nil if value.nil?
+    decoder = Kafka::Protocol::Decoder.from_string(value)
+    schema = decoder.int16
+    if schema == 0 || schema == 1 then
+      # Structure is:
+      #   protocol_type (string), generation (int32), protocol (string), leader_key (nullable string), members[]
+      # and each member is for schema=0
+      #   member_id (string), client_id (string), client_host (string), session_timeout (int32), subscription (bytes), assignment (bytes)
+      # and for schema=1
+      #   member_id (string), client_id (string), client_host (string), rebalance_timeout (int32), session_timeout (int32), subscription (bytes), assignment (bytes)
+      GroupMetadata.new decoder.string, decoder.int32, decoder.string, decoder.string, decoder.array {
+        GroupMember.new(
+          member_id: decoder.string,
+          client_id: decoder.string,
+          client_host: decoder.string,
+          rebalance_timeout: (schema == 1) ? decoder.int32 : nil,
+          session_timeout: decoder.int32,
+          subscription: decoder.bytes,
+          assignment: decoder.bytes
+        )
+      }
+    else
+      # Unknown
+      raise "Unknown group metadata value schema #{schema}"
+    end
+  end
+end
+
+class ConsumerDataMonitor
+
+  def initialize(kafka)
+    @kafka = kafka
+    @data = {}
+    @mutex = Mutex.new
+  end
+
+  def start
+    Thread.new {
+      begin
+        run
+      rescue => e
+        puts "Error in consumer data monitor: #{e}"
+        puts "#{e.backtrace}"
+      end
+    }
+  end
+
+  def run
+    @kafka.each_message(topic: '__consumer_offsets', start_from_beginning: false) do |message|
+
+      key = KeyDecoder.decode(message.key)
+
+      if key.is_a? GroupTopicPartition then
+        # Consumer offset
+        offset = OffsetDecoder.decode(message.value)
+        register_consumer_offset(key.group, key.topic, key.partition, offset.offset)
+      end
+
+    end
+  end
+
+  def register_consumer_offset(group, topic, partition, offset)
+    @mutex.synchronize do
+
+      @data[group] ||= {}
+      group_data = @data[group]
+
+      group_data[topic] ||= {}
+      topic_data = group_data[topic]
+
+#      puts "#{group} #{topic} #{partition} => #{offset}" if topic_data[partition] != offset
+
+      topic_data[partition] = offset
+    end
+  end
+
+  def get_data
+    # Return a deep copy with a snapshot of data so it does not change under the feet
+    # of a thread inspecting it
+    @mutex.synchronize do
+      Marshal.load(Marshal.dump(@data))
+    end
+  end
+
+end
+
+class MetricSender
+
+  def initialize(server, base_metric)
+    @host, @port = server.split(':', 2)
+    @port ||= 2003
+    @base_metric = base_metric
+  end
+
+  def escape(param)
+    return nil if param.nil?
+    param = param.to_s
+    param.gsub(/\./, '\\.')
+  end
+
+  def connect
+    return unless @socket.nil?
+    @socket = TCPSocket.new(@host, @port)
+  end
+
+  def close
+    return if @socket.nil?
+    begin
+      @socket.close
+    rescue => e
+      puts "Error closing the socket: #{e}"
+    end
+    @socket = nil
+  end
+
+  def publish(time, path, value)
+    metric = path.collect{|p| escape(p)}.join('.')
+    metric = @base_metric + '.' + metric unless @base_metric.nil?
+
+    connect
+
+    begin
+      @socket.puts "#{metric} #{value} #{time.to_i}"
+    rescue => e
+      puts "Error writing to the socket: #{e}"
+      close
+    end
+  end
+end
+
+class Reporter
+
+  def initialize(sender, options)
+    @sender = sender
+    @options = options
+  end
+
+  def run
+    # Ruby Kafka client is not thread safe.
+    # https://github.com/zendesk/ruby-kafka#thread-safety says network communications are not synchronized
+    # so we need two clients - one for getting consumer offsets and one for getting topic end offsets
+    # Depending on reporting options combination, we could avoid creating one of them but it is not a big deal
+    # as no connection is established at this moment
+    kafka1 = Kafka.new(
+      seed_brokers: @options.brokers,
+      client_id: File.basename(__FILE__)
+    )
+
+    kafka2 = Kafka.new(
+      seed_brokers: @options.brokers,
+      client_id: File.basename(__FILE__)
+    )
+
+    @data_retriever = TopicDataRetriever.new(kafka1)
+
+    @consumer_monitor = ConsumerDataMonitor.new(kafka2)
+
+    if @options.report_consumer_offsets || @options.report_consumer_lag then
+      @consumer_monitor.start
+      # Let it collect some data
+      sleep 5
+    end
+
+    while true
+      begin
+        report
+        sleep @options.interval
+      rescue => e
+        puts e
+        puts e.backtrace
+      end
+    end
+  end
+
+  def report
+    time = Time.new
+    consumer_data = @consumer_monitor.get_data
+    topic_offsets = @data_retriever.get_topic_offsets
+
+    topic_offsets.each {|topic, end_offsets|
+
+      if @options.report_end_offsets then
+        end_offsets.each {|partition, end_offset|
+          @sender.publish(time, ['topic', topic, 'partition', partition, 'end_offset'], end_offset)
+        }
+      end
+
+      if @options.report_consumer_offsets || @options.report_consumer_lag then
+        consumer_data.each {|group, topics|
+          consumer_topic_data = topics[topic]
+          next if consumer_topic_data.nil?
+          full_lag = 0
+          end_offsets.each {|partition, end_offset|
+             consumer_offset = consumer_topic_data[partition]
+             next if consumer_offset.nil?
+             lag = end_offset - consumer_offset
+             full_lag += lag
+
+             if @options.report_consumer_offsets then
+               @sender.publish(time, ['group', group, 'topic', topic, 'partition', partition, 'consumer_offset'], consumer_offset)
+             end
+
+             if @options.report_consumer_lag == :partition || @options.report_consumer_lag == :both then
+               @sender.publish(time, ['group', group, 'topic', topic, 'partition', partition, 'lag'], lag)
+             end
+          }
+
+         if @options.report_consumer_lag == :total || @options.report_consumer_lag == :both then
+           @sender.publish(time, ['group', group, 'topic', topic, 'lag'], full_lag)
+         end
+        }
+      end
+
+    }
+
+  end
+end
+
+options = OpenStruct.new
+options.brokers = [] 
+options.interval = 60
+options.report_end_offsets = false
+options.report_consumer_offsets = false
+options.report_consumer_lag = false
+
+optparse = OptionParser.new do |opts|
+
+  opts.separator ""
+  opts.separator "Kafka:"
+
+  opts.on("--broker HOST[:PORT]", 
+          "Address of a broker from which the entire cluster will be discovered",
+          "Can be specified more than once") do |v|
+    options.brokers << v
+  end
+
+  opts.separator ""
+  opts.separator "Metrics:"
+
+  opts.on("--metrics-server HOST[:PORT]",
+          "Address of the metrics server (Carbon protocol)",
+          "Port is assumed to be 2003 if not specified") do |v|
+    options.metrics_server = v
+  end
+  opts.on("--metrics-base BASE",
+          "Base metric name. The full metric names will look like 'BASE.topic.X.partition.N.end_offset'") do |v|
+    options.metrics_base = v
+  end
+  opts.on("--interval INTERVAL", Integer,
+          "Interval in seconds between reports (default #{options.interval})") do |v|
+    options.interval = v
+  end
+
+  opts.separator ""
+  opts.separator "Selecting what is reported:"
+
+  opts.on("--end-offset",
+          "Report topic end offset (last published offset)",
+          "Generates a value per partition") do |v|
+    options.report_end_offsets = v
+  end
+  opts.on("--consumer-offset",
+          "Report consumer offset (last consumed offset)",
+          "Generates a value per partition") do |v|
+    options.report_consumer_offsets = v
+  end
+  opts.on("--consumer-lag MODE", [:partition, :total, :both],
+          "Report consumer lag (difference between published and consumed offsets).",
+          "Mode can be",
+          "  partition - report a value for each partition",
+          "  total - single value across all partitions, total lag",
+          "  both - both individual partition values and total lag") do |v|
+    options.report_consumer_lag = v
+  end
+
+end
+
+begin
+  optparse.parse!
+  raise OptionParser::MissingArgument.new('broker') if options.brokers.empty?
+  raise OptionParser::MissingArgument.new('metrics-server') if options.metrics_server.nil?
+rescue OptionParser::InvalidOption, OptionParser::MissingArgument
+  puts $!.to_s
+  puts optparse
+  exit
+end     
+
+sender = MetricSender.new(options.metrics_server, options.metrics_base)
+
+reporter = Reporter.new(sender, options)
+reporter.run
+
