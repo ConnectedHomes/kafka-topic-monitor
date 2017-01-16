@@ -4,6 +4,8 @@ Kafka topic monitoring tool
 The tool allows collecting some topic metrics from Kafka and reporing them to Graphite or a similar system using Carbon protocol.
 The main purpose was to monitor consumer lag.
 
+Note that this tool was designed to be used with Kafka 0.9 new consumers only - the consumer offsets are read from Kafka's \__consumer_offset topic.
+
 ## Installation
 You need as least Ruby 2.1 because it is required by ruby-kafka. Then install the ruby-kafka itself:
 ```
