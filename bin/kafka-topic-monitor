@@ -1,0 +1,58 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require 'ostruct'
+require_relative '../lib/graphite_sender'
+require_relative '../lib/metric_reporter'
+
+options                         = OpenStruct.new
+options.brokers                 = [] 
+options.interval                = 60
+options.report_end_offsets      = false
+options.report_consumer_offsets = false
+options.report_consumer_lag     = false
+
+optparse = OptionParser.new do |opts|
+  opts.separator ""
+  opts.separator "Kafka:"
+  opts.on("--broker HOST[:PORT]", 
+          "Address of a broker from which the entire cluster will be discovered",
+          "Can be specified more than once") { |v| options.brokers << v }
+  opts.separator ""
+  opts.separator "Metrics:"
+  opts.on("--metrics-server HOST[:PORT]",
+          "Address of the metrics server (Carbon protocol)",
+          "Port is assumed to be 2003 if not specified") { |v| options.metrics_server = v }
+  opts.on("--metrics-base BASE",
+          "Base metric name. The full metric names will look like 'BASE.topic.X.partition.N.end_offset'") { |v| options.metrics_base = v }
+  opts.on("--interval INTERVAL", Integer,
+          "Interval in seconds between reports (default #{options.interval})") { |v| options.interval = v }
+  opts.separator ""
+  opts.separator "Selecting what is reported:"
+  opts.on("--end-offset",
+          "Report topic end offset (last published offset)",
+          "Generates a value per partition") { |v| options.report_end_offsets = v }
+  opts.on("--consumer-offset",
+          "Report consumer offset (last consumed offset)",
+          "Generates a value per partition") { |v| options.report_consumer_offsets = v }
+  opts.on("--consumer-lag MODE", [:partition, :total, :both],
+          "Report consumer lag (difference between published and consumed offsets).",
+          "Mode can be",
+          "  partition - report a value for each partition",
+          "  total - single value across all partitions, total lag",
+          "  both - both individual partition values and total lag") { |v| options.report_consumer_lag = v }
+end
+
+begin
+  optparse.parse!
+  raise OptionParser::MissingArgument.new('broker') if options.brokers.empty?
+  raise OptionParser::MissingArgument.new('metrics-server') if options.metrics_server.nil?
+rescue OptionParser::InvalidOption, OptionParser::MissingArgument
+  puts $!.to_s
+  puts optparse
+  exit
+end     
+
+sender = HiveHome::GraphiteSender.new(options.metrics_server, options.metrics_base)
+reporter = HiveHome::Kafka::Reporter.new(sender, options)
+reporter.run
