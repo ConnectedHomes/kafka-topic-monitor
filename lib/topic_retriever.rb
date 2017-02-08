@@ -1,7 +1,7 @@
 require 'kafka'
 
 module HiveHome
-  module Kafka
+  module KafkaTopicMonitor
 
     ##
     # A class that queries Kafka for topics and their end offsets.

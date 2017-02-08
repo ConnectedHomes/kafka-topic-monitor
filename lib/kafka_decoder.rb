@@ -1,7 +1,7 @@
 require 'kafka'
 
 module HiveHome
-  module Kafka 
+  module KafkaTopicMonitor 
     
     ## 
     # A collection of class (static) methods for decoding the binary data read from the

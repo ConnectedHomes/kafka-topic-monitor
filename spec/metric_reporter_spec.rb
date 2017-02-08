@@ -25,7 +25,7 @@ class MockConsumerDataMonitor
   end
 end
 
-describe HiveHome::Kafka::Reporter do
+describe HiveHome::KafkaTopicMonitor::Reporter do
   before(:each) do
     @sender  = SenderMock.new
     @options = OpenStruct.new(
@@ -33,7 +33,7 @@ describe HiveHome::Kafka::Reporter do
       :report_consumer_offsets => false,
       :report_consumer_lag     => :none
     )
-    @reporter = HiveHome::Kafka::Reporter.new(@sender, @options)
+    @reporter = HiveHome::KafkaTopicMonitor::Reporter.new(@sender, @options)
     @reporter.instance_variable_set(:@data_retriever  , MockTopicDataRetriever.new)
     @reporter.instance_variable_set(:@consumer_monitor, MockConsumerDataMonitor.new)
   end

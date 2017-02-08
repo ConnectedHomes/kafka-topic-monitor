@@ -2,7 +2,7 @@ require 'kafka'
 require_relative 'kafka_decoder'
 
 module HiveHome
-  module Kafka
+  module KafkaTopicMonitor
 
     ## 
     # A background job that repeatedly queries Kafka for consumer offset data.

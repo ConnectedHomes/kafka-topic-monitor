@@ -5,7 +5,7 @@ require_relative 'consumer_monitor'
 require_relative 'topic_retriever'
 
 module HiveHome
-  module Kafka
+  module KafkaTopicMonitor
     
     ##
     # The main functionality of this application. This class repeatedly queries Kafka for consumer offset metrics
@@ -28,8 +28,8 @@ module HiveHome
         kafka1 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
         kafka2 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
 
-        @data_retriever   = HiveHome::Kafka::TopicDataRetriever.new(kafka1)
-        @consumer_monitor = HiveHome::Kafka::ConsumerDataMonitor.new(kafka2)
+        @data_retriever   = TopicDataRetriever.new(kafka1)
+        @consumer_monitor = ConsumerDataMonitor.new(kafka2)
 
         if @opts.report_consumer_offsets || @opts.report_consumer_lag
           @consumer_monitor.start
