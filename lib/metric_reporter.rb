@@ -77,6 +77,7 @@ module HiveHome
 
       def report_partition_lags(time, consumer_offsets, topic_offsets)
         each_paritition(consumer_offsets) do |group, topic, partition, offset|
+          next if topic_offsets[topic].nil? || topic_offsets[topic][partition].nil?
           end_offset = topic_offsets[topic][partition]
           lag = end_offset - offset
           @sender.publish(time, ['group', group, 'topic', topic, 'partition', partition, 'lag'], lag)
@@ -85,6 +86,7 @@ module HiveHome
 
       def report_topic_lags(time, consumer_offsets, topic_offsets)
         each_topic(consumer_offsets) do |group, topic, offset|
+          next if topic_offsets[topic].nil?
           end_offset = topic_offsets[topic].values.inject(:+)
           lag = end_offset - offset
           @sender.publish(time, ['group', group, 'topic', topic, 'lag'], lag)
@@ -92,7 +94,7 @@ module HiveHome
       end
 
       # :call-seq:
-      # yield_consumer_offsets(hash) { |consumer_group, topic, partition, offset| ... }
+      # each_paritition(hash) { |consumer_group, topic, partition, offset| ... }
       def each_paritition(consumer_offsets)
         consumer_offsets.each do |group, group_offsets|
           group_offsets.each do |topic, topic_offsets|
@@ -104,7 +106,7 @@ module HiveHome
       end
 
       # :call-seq:
-      # yield_consumer_offsets(hash) { |consumer_group, topic, offset| ... }
+      # each_topic(hash) { |consumer_group, topic, offset| ... }
       def each_topic(consumer_offsets)
         consumer_offsets.each do |group, group_offsets|
           group_offsets.each do |topic, topic_offsets|

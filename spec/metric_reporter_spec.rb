@@ -33,9 +33,12 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
       :report_consumer_offsets => false,
       :report_consumer_lag     => :none
     )
+    @topic_data_retriever  = MockTopicDataRetriever.new
+    @consumer_data_monitor = MockConsumerDataMonitor.new
+
     @reporter = HiveHome::KafkaTopicMonitor::Reporter.new(@sender, @options)
-    @reporter.instance_variable_set(:@data_retriever  , MockTopicDataRetriever.new)
-    @reporter.instance_variable_set(:@consumer_monitor, MockConsumerDataMonitor.new)
+    @reporter.instance_variable_set(:@data_retriever  , @topic_data_retriever)
+    @reporter.instance_variable_set(:@consumer_monitor, @consumer_data_monitor)
   end
 
   it 'emits no metrics if no options are set' do
@@ -115,6 +118,56 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
     expect(@sender.results['group.XYZ.topic.ABC.partition.0.lag']).to eq(10)
     expect(@sender.results['group.XYZ.topic.ABC.partition.1.lag']).to eq(1)
     expect(@sender.results['group.XYZ.topic.ABC.lag']).to eq(11)
+  end
+
+  # Since consumer offsets and end offsets are queried by different threads at slightly
+  # different instants in time, topics and partitions may not match. That can happen,
+  # for example, when new topics are getting created at the time. The metrics reporter
+  # needs to detect such mismatches and skip sending the corresponding metrics.
+  it 'handles missing end offsets gracefully' do
+    allow(@topic_data_retriever).to receive(:get_topic_offsets).and_return(
+      {
+        'A' => { 0 => 100           },
+        'B' => { 0 => 100           },
+        'C' => { 0 => 100, 1 => 100 },
+        'D' => { 0 => 100           }
+      }
+    )
+    allow(@consumer_data_monitor).to receive(:get_consumer_offsets).and_return(
+      { 
+        'grp' => { 
+          'A' => { 0 => 99          },
+          'B' => { 0 => 99, 1 => 99 },
+          'C' => { 0 => 99          },
+          'X' => { 0 => 99          }
+        }
+      }
+    )
+
+    @options.report_end_offsets      = true
+    @options.report_consumer_offsets = true
+    @options.report_consumer_lag     = :both
+
+    @reporter.report
+
+    expect(@sender.results).to have_key('topic.A.partition.0.end_offset')
+    expect(@sender.results).to have_key('topic.B.partition.0.end_offset')
+    expect(@sender.results).to have_key('topic.C.partition.0.end_offset')
+    expect(@sender.results).to have_key('topic.D.partition.0.end_offset')
+
+    expect(@sender.results).to have_key('group.grp.topic.A.partition.0.consumer_offset')
+    expect(@sender.results).to have_key('group.grp.topic.B.partition.0.consumer_offset')
+    expect(@sender.results).to have_key('group.grp.topic.B.partition.1.consumer_offset')
+    expect(@sender.results).to have_key('group.grp.topic.C.partition.0.consumer_offset')
+    expect(@sender.results).to have_key('group.grp.topic.X.partition.0.consumer_offset')
+
+    expect(@sender.results).to     have_key('group.grp.topic.A.partition.0.lag')
+    expect(@sender.results).to     have_key('group.grp.topic.B.partition.0.lag')
+    expect(@sender.results).not_to have_key('group.grp.topic.B.partition.1.lag')
+    expect(@sender.results).to     have_key('group.grp.topic.C.partition.0.lag')
+    expect(@sender.results).not_to have_key('group.grp.topic.C.partition.1.lag')
+    expect(@sender.results).not_to have_key('group.grp.topic.D.partition.0.lag')
+    expect(@sender.results).not_to have_key('group.grp.topic.X.partition.0.lag')
   end
 
   it 'yields partition offsets' do
