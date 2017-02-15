@@ -18,11 +18,14 @@ module HiveHome
 
       def start
         Thread.new do
-          begin
-            run
-          rescue => e
-            puts "Error in consumer data monitor: #{e}"
-            puts "#{e.backtrace}"
+          while true
+            begin
+              run
+              sleep 60
+            rescue => e
+              puts "Error in consumer data monitor: #{e}"
+              puts e.backtrace
+            end
           end
         end
       end
