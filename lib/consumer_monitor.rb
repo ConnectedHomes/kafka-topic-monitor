@@ -21,11 +21,11 @@ module HiveHome
           while true
             begin
               run
-              sleep 60
             rescue => e
               puts "Error in consumer data monitor: #{e}"
               puts e.backtrace
             end
+            sleep 60
           end
         end
       end
