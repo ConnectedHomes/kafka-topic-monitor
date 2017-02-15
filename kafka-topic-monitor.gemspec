@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = 'kafka-topic-monitor'
-  spec.version       = '1.0.2'
+  spec.version       = '1.0.3'
   spec.authors       = ['Dmitry Andrianov', 'Talal Al-Tamimi']
   spec.email         = ['dmitry.andrianov@hivehome.com', 'talal.al-tamimi@hivehome.com']
 
