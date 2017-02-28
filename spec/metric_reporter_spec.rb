@@ -100,8 +100,8 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
     @reporter.report
 
     expect(@sender.results.length).to eq(1)
-    expect(@sender.results).to have_key('group.XYZ.topic.ABC.lag')
-    expect(@sender.results['group.XYZ.topic.ABC.lag']).to eq(11)
+    expect(@sender.results).to have_key('group.XYZ.topic.ABC.total.lag')
+    expect(@sender.results['group.XYZ.topic.ABC.total.lag']).to eq(11)
   end
 
   it 'emit partittion and topic lags' do
@@ -114,10 +114,10 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
     expect(@sender.results.length).to eq(3)
     expect(@sender.results).to have_key('group.XYZ.topic.ABC.partition.0.lag')
     expect(@sender.results).to have_key('group.XYZ.topic.ABC.partition.1.lag')
-    expect(@sender.results).to have_key('group.XYZ.topic.ABC.lag')
+    expect(@sender.results).to have_key('group.XYZ.topic.ABC.total.lag')
     expect(@sender.results['group.XYZ.topic.ABC.partition.0.lag']).to eq(10)
     expect(@sender.results['group.XYZ.topic.ABC.partition.1.lag']).to eq(1)
-    expect(@sender.results['group.XYZ.topic.ABC.lag']).to eq(11)
+    expect(@sender.results['group.XYZ.topic.ABC.total.lag']).to eq(11)
   end
 
   # Since consumer offsets and end offsets are queried by different threads at slightly
