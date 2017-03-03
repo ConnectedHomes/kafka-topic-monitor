@@ -89,7 +89,7 @@ module HiveHome
           next if topic_offsets[topic].nil?
           end_offset = topic_offsets[topic].values.inject(:+)
           lag = end_offset - offset
-          @sender.publish(time, ['group', group, 'topic', topic, 'total.lag'], lag)
+          @sender.publish(time, ['group', group, 'topic', topic, 'total', 'lag'], lag)
         end
       end
 
