@@ -33,7 +33,7 @@ module HiveHome
     private
 
     def escape(param)
-      param.to_s.gsub(/\./, '\\.') unless param.nil?
+      param.to_s.gsub(/\./, '_') unless param.nil?
     end
 
     def connect
