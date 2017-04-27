@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = 'kafka-topic-monitor'
-  spec.version       = '1.0.6'
+  spec.version       = '1.0.7'
   spec.authors       = ['Dmitry Andrianov', 'Talal Al-Tamimi']
   spec.email         = ['dmitry.andrianov@hivehome.com', 'talal.al-tamimi@hivehome.com']
 
@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
   # if spec.respond_to?(:metadata)
   #   spec.metadata['allowed_push_host'] = 'TODO: Set to 'http://mygemserver.com''
   # else
-  #  raise 'RubyGems 2.0 or newer is required to protect against public gem pushes.'
+  #   raise 'RubyGems 2.0 or newer is required to protect against public gem pushes.'
   # end
 
   spec.required_ruby_version = '~> 2.1'

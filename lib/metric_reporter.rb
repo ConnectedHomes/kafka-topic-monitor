@@ -15,8 +15,8 @@ module HiveHome
     # 
     class Reporter
       def initialize(sender, options)
-        @sender  = sender
-        @opts = options
+        @sender = sender
+        @opts   = options
       end
 
       def run
@@ -25,11 +25,9 @@ module HiveHome
         # so we need two clients - one for getting consumer offsets and one for getting topic end offsets
         # Depending on reporting options combination, we could avoid creating one of them but it is not a big deal
         # as no connection is established at this moment.
-        kafka1 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
-        kafka2 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
-
-        @data_retriever   = TopicDataRetriever.new(kafka1)
-        @consumer_monitor = ConsumerDataMonitor.new(kafka2)
+        scriptname        = File.basename(__FILE__)
+        @data_retriever   = TopicDataRetriever.new(seed_brokers: @opts.brokers, client_id: scriptname)
+        @consumer_monitor = ConsumerDataMonitor.new(seed_brokers: @opts.brokers, client_id: scriptname)
 
         if @opts.report_consumer_offsets || @opts.report_consumer_lag
           @consumer_monitor.start
@@ -43,6 +41,7 @@ module HiveHome
             sleep @opts.interval
           rescue => e
             puts e
+            puts e.class
             puts e.backtrace
           end
         end
