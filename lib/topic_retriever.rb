@@ -1,33 +1,18 @@
 require 'kafka'
 
-module HiveHome
-  module KafkaTopicMonitor
-
-    ##
-    # A class that queries Kafka for topics and their end offsets.
-    #
-    # Author: Dmitry Andrianov
-    #
-    class TopicDataRetriever
-      def initialize(kafka)
-        @cluster = kafka.instance_variable_get("@cluster")
-      end
-
-      # Returns a hash of the structure:
-      #   { topic => { partition => end-offset } }
-      def get_topic_offsets
-        result  = {}
-        topics  = @cluster.topics
-        @cluster.add_target_topics topics
-        topics.each do |topic|
-          partitions    = @cluster.partitions_for(topic)
-          ids           = partitions.collect(&:partition_id)
-          offsets       = @cluster.resolve_offsets(topic, ids, :latest)
-          result[topic] = offsets
-        end
-        result
-      end
+# Open up 3rd-party class and add convenience methods
+module Kafka
+  class Client
+    # Returns a hash of the structure: { topic:String => { partition:Int => end_offset:Int } }
+    def topic_offsets
+      topics.map { |topic| [topic, last_offsets_for(topic)] } .to_h
     end
 
+    # Returns a hash of the structure: { partition:Int => end_offset:Int }
+    def last_offsets_for(topic)
+      @cluster.refresh_metadata_if_necessary!
+      partition_ids = @cluster.partitions_for(topic).collect(&:partition_id)
+      @cluster.resolve_offsets(topic, partition_ids, :latest)
+    end
   end
 end

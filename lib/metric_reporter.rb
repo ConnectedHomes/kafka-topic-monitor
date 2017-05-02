@@ -28,7 +28,7 @@ module HiveHome
         kafka1 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
         kafka2 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
 
-        @data_retriever   = TopicDataRetriever.new(kafka1)
+        @data_retriever   = kafka1
         @consumer_monitor = ConsumerDataMonitor.new(kafka2)
 
         if @opts.report_consumer_offsets || @opts.report_consumer_lag
@@ -51,7 +51,7 @@ module HiveHome
       def report
         time             = Time.new
         consumer_offsets = @consumer_monitor.get_consumer_offsets
-        topic_offsets    = @data_retriever.get_topic_offsets
+        topic_offsets    = @data_retriever.topic_offsets
 
         report_end_offsets(time, topic_offsets)                      if @opts.report_end_offsets
         report_consumer_offsets(time, consumer_offsets)              if @opts.report_consumer_offsets
