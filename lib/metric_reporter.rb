@@ -29,7 +29,7 @@ module HiveHome
         kafka2 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
 
         @data_retriever   = kafka1
-        @consumer_monitor = ConsumerDataMonitor.new(kafka2)
+        @consumer_monitor = ConsumerDataMonitor.new(kafka2, @opts.interval)
 
         if @opts.report_consumer_offsets || @opts.report_consumer_lag
           @consumer_monitor.start
@@ -39,19 +39,20 @@ module HiveHome
 
         while true
           begin
+            # print_metadata(kafka1)
             report
-            sleep @opts.interval
           rescue => e
-            puts e
+            puts "[#{Time.now}] Error in reporter main loop: #{e.class} - #{e.message}"
             puts e.backtrace
           end
+          sleep @opts.interval
         end
       end
 
       def report
         time             = Time.new
         consumer_offsets = @consumer_monitor.get_consumer_offsets
-        topic_offsets    = @data_retriever.topic_offsets
+        topic_offsets    = @data_retriever.last_offsets
 
         report_end_offsets(time, topic_offsets)                      if @opts.report_end_offsets
         report_consumer_offsets(time, consumer_offsets)              if @opts.report_consumer_offsets
@@ -113,6 +114,23 @@ module HiveHome
             offset = topic_offsets.values.inject(:+)
             yield(group, topic, offset) if block_given?
           end
+        end
+      end
+
+      # For debugging
+      def print_metadata(kafka_client)
+        c = kafka_client.instance_variable_get('@cluster')
+        c.refresh_metadata_if_necessary!
+        ci = c.instance_variable_get('@cluster_info')
+
+        puts "#{[Time.now]} Brokers: #{ci.brokers.join(', ')}"
+        ci.topics.each do |t|
+          puts "  #{t.topic_name} [error_code=#{t.topic_error_code}]"
+          errors << { :topic => t.topic_name, :error_code => t.topic_error_code } if t.topic_error_code != 0
+          t.partitions.each do |p|
+            printf("    P=%-2d, L=%d, Err=%d", p.partition_id, p.leader, p.partition_error_code)
+          end
+          puts
         end
       end
 
