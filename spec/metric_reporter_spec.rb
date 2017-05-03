@@ -11,7 +11,7 @@ class SenderMock
   end
 end
 
-class MockTopicDataRetriever
+class MockKafkaClient
   def last_offsets
     { 'ABC' => { 0 => 100, 1 => 100 } }
   end
@@ -33,7 +33,7 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
       :report_consumer_offsets => false,
       :report_consumer_lag     => :none
     )
-    @topic_data_retriever  = MockTopicDataRetriever.new
+    @topic_data_retriever  = MockKafkaClient.new
     @consumer_data_monitor = MockConsumerDataMonitor.new
 
     @reporter = HiveHome::KafkaTopicMonitor::Reporter.new(@sender, @options)

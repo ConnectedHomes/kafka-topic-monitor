@@ -119,6 +119,8 @@ module HiveHome
   end
 end
 
+# This is a temporary fix for https://github.com/zendesk/ruby-kafka/issues/311
+# until we can successfully submit a fix to the ruby-kafka library.
 module Kafka
   class Client
 
@@ -143,8 +145,6 @@ module Kafka
         begin
           result[topic] = @cluster.resolve_offsets(topic, partition_ids, :latest)
         rescue ProtocolError
-          # Once we submit a patch for Cluster#resolve_offsets with
-          # a similar rescue statement, this one can be removed.
           @cluster.mark_as_stale!
           raise
         end
