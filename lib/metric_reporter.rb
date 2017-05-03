@@ -2,7 +2,6 @@ require 'kafka'
 require 'ostruct'
 require_relative 'kafka_decoder'
 require_relative 'consumer_monitor'
-require_relative 'topic_retriever'
 
 module HiveHome
   module KafkaTopicMonitor
@@ -29,7 +28,7 @@ module HiveHome
         kafka2 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
 
         @data_retriever   = kafka1
-        @consumer_monitor = ConsumerDataMonitor.new(kafka2, @opts.interval)
+        @consumer_monitor = ConsumerDataMonitor.new(kafka2)
 
         if @opts.report_consumer_offsets || @opts.report_consumer_lag
           @consumer_monitor.start
@@ -39,7 +38,6 @@ module HiveHome
 
         while true
           begin
-            # print_metadata(kafka1)
             report
           rescue => e
             puts "[#{Time.now}] Error in reporter main loop: #{e.class} - #{e.message}"
@@ -117,23 +115,41 @@ module HiveHome
         end
       end
 
-      # For debugging
-      def print_metadata(kafka_client)
-        c = kafka_client.instance_variable_get('@cluster')
-        c.refresh_metadata_if_necessary!
-        ci = c.instance_variable_get('@cluster_info')
+    end
+  end
+end
 
-        puts "#{[Time.now]} Brokers: #{ci.brokers.join(', ')}"
-        ci.topics.each do |t|
-          puts "  #{t.topic_name} [error_code=#{t.topic_error_code}]"
-          errors << { :topic => t.topic_name, :error_code => t.topic_error_code } if t.topic_error_code != 0
-          t.partitions.each do |p|
-            printf("    P=%-2d, L=%d, Err=%d", p.partition_id, p.leader, p.partition_error_code)
-          end
-          puts
+module Kafka
+  class Client
+
+    # Fetches end offests for specified topics.
+    #
+    # @param topics [String, Array<String>] single topic name or array of topic names.
+    #   nil means all topics will be fetched.
+    #
+    # @return [Hash] {
+    #     topic_name [String] => {
+    #       partition_id [Integer] => end_offset [Integer], ...
+    #     }, ...
+    #   }
+    def last_offsets(topics = nil)
+      topics   = [topics] if !topics.nil? && topics.is_a?(String)
+      topics ||= self.topics
+      @cluster.add_target_topics(topics)
+
+      result = {}
+      topics.each do |topic|
+        partition_ids = @cluster.partitions_for(topic).collect(&:partition_id)
+        begin
+          result[topic] = @cluster.resolve_offsets(topic, partition_ids, :latest)
+        rescue ProtocolError
+          # Once we submit a patch for Cluster#resolve_offsets with
+          # a similar rescue statement, this one can be removed.
+          @cluster.mark_as_stale!
         end
       end
-
+      result
     end
+
   end
 end

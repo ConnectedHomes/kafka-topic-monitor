@@ -10,11 +10,10 @@ module HiveHome
     # Author: Dmitry Andrianov
     #
     class ConsumerDataMonitor
-      def initialize(kafka, interval)
+      def initialize(kafka)
         @kafka    = kafka
         @data     = {}
         @mutex    = Mutex.new
-        @interval = interval
       end
 
       def start
@@ -26,7 +25,7 @@ module HiveHome
               puts "[#{Time.now}] Error in consumer data monitor: #{e.class} - #{e.message}"
               puts e.backtrace
             end
-            sleep @interval
+            sleep 60
           end
         end
       end
