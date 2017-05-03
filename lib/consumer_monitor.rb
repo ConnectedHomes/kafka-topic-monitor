@@ -11,9 +11,9 @@ module HiveHome
     #
     class ConsumerDataMonitor
       def initialize(kafka)
-        @kafka = kafka
-        @data  = {}
-        @mutex = Mutex.new
+        @kafka    = kafka
+        @data     = {}
+        @mutex    = Mutex.new
       end
 
       def start
@@ -22,7 +22,7 @@ module HiveHome
             begin
               run
             rescue => e
-              puts "Error in consumer data monitor: #{e}"
+              puts "[#{Time.now}] Error in consumer data monitor: #{e.class} - #{e.message}"
               puts e.backtrace
             end
             sleep 60

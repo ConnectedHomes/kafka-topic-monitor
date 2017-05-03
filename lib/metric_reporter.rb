@@ -2,7 +2,6 @@ require 'kafka'
 require 'ostruct'
 require_relative 'kafka_decoder'
 require_relative 'consumer_monitor'
-require_relative 'topic_retriever'
 
 module HiveHome
   module KafkaTopicMonitor
@@ -28,7 +27,7 @@ module HiveHome
         kafka1 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
         kafka2 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
 
-        @data_retriever   = TopicDataRetriever.new(kafka1)
+        @data_retriever   = kafka1
         @consumer_monitor = ConsumerDataMonitor.new(kafka2)
 
         if @opts.report_consumer_offsets || @opts.report_consumer_lag
@@ -40,18 +39,18 @@ module HiveHome
         while true
           begin
             report
-            sleep @opts.interval
           rescue => e
-            puts e
+            puts "[#{Time.now}] Error in reporter main loop: #{e.class} - #{e.message}"
             puts e.backtrace
           end
+          sleep @opts.interval
         end
       end
 
       def report
         time             = Time.new
         consumer_offsets = @consumer_monitor.get_consumer_offsets
-        topic_offsets    = @data_retriever.get_topic_offsets
+        topic_offsets    = @data_retriever.last_offsets
 
         report_end_offsets(time, topic_offsets)                      if @opts.report_end_offsets
         report_consumer_offsets(time, consumer_offsets)              if @opts.report_consumer_offsets
@@ -117,5 +116,41 @@ module HiveHome
       end
 
     end
+  end
+end
+
+# This is a temporary fix for https://github.com/zendesk/ruby-kafka/issues/311
+# until we can successfully submit a fix to the ruby-kafka library.
+module Kafka
+  class Client
+
+    # Fetches end offests for specified topics.
+    #
+    # @param topics [String, Array<String>] single topic name or array of topic names.
+    #   nil means all topics will be fetched.
+    #
+    # @return [Hash] {
+    #     topic_name [String] => {
+    #       partition_id [Integer] => end_offset [Integer], ...
+    #     }, ...
+    #   }
+    def last_offsets(topics = nil)
+      topics   = [topics] if !topics.nil? && topics.is_a?(String)
+      topics ||= self.topics
+      @cluster.add_target_topics(topics)
+
+      result = {}
+      topics.each do |topic|
+        partition_ids = @cluster.partitions_for(topic).collect(&:partition_id)
+        begin
+          result[topic] = @cluster.resolve_offsets(topic, partition_ids, :latest)
+        rescue ProtocolError
+          @cluster.mark_as_stale!
+          raise
+        end
+      end
+      result
+    end
+
   end
 end

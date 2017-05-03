@@ -25,7 +25,7 @@ module HiveHome
       begin
         @socket.puts "#{metric} #{value} #{time.to_i}"
       rescue => e
-        puts "Error writing to the socket: #{e}"
+        puts "[#{Time.now}] Error writing to metrics socket: #{e.class} - #{e.message}"
         close
       end
     end
@@ -45,7 +45,7 @@ module HiveHome
       begin
         @socket.close
       rescue => e
-        puts "Error closing the socket: #{e}"
+        puts "[#{Time.now}] Error closing metrics socket: #{e.class} - #{e.message}"
       end
       @socket = nil
     end

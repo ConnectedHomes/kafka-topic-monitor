@@ -11,8 +11,8 @@ class SenderMock
   end
 end
 
-class MockTopicDataRetriever
-  def get_topic_offsets
+class MockKafkaClient
+  def last_offsets
     { 'ABC' => { 0 => 100, 1 => 100 } }
   end
 end
@@ -33,7 +33,7 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
       :report_consumer_offsets => false,
       :report_consumer_lag     => :none
     )
-    @topic_data_retriever  = MockTopicDataRetriever.new
+    @topic_data_retriever  = MockKafkaClient.new
     @consumer_data_monitor = MockConsumerDataMonitor.new
 
     @reporter = HiveHome::KafkaTopicMonitor::Reporter.new(@sender, @options)
@@ -125,7 +125,7 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
   # for example, when new topics are getting created at the time. The metrics reporter
   # needs to detect such mismatches and skip sending the corresponding metrics.
   it 'handles missing end offsets gracefully' do
-    allow(@topic_data_retriever).to receive(:get_topic_offsets).and_return(
+    allow(@topic_data_retriever).to receive(:last_offsets).and_return(
       {
         'A' => { 0 => 100           },
         'B' => { 0 => 100           },
