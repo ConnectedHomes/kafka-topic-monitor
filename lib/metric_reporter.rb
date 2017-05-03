@@ -146,6 +146,7 @@ module Kafka
           # Once we submit a patch for Cluster#resolve_offsets with
           # a similar rescue statement, this one can be removed.
           @cluster.mark_as_stale!
+          raise
         end
       end
       result
