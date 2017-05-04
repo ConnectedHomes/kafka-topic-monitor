@@ -143,7 +143,8 @@ module Kafka
       topics.each do |topic|
         partition_ids = @cluster.partitions_for(topic).collect(&:partition_id)
         begin
-          result[topic] = @cluster.resolve_offsets(topic, partition_ids, :latest)
+          offsets       = @cluster.resolve_offsets(topic, partition_ids, :latest)
+          result[topic] = offsets.collect { |k, v| [k, v - 1] } .to_h
         rescue ProtocolError
           @cluster.mark_as_stale!
           raise
