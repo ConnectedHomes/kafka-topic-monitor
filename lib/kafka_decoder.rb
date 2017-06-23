@@ -6,8 +6,8 @@ module HiveHome
     ## 
     # A collection of class (static) methods for decoding the binary data read from the
     # __consumer_offsets topic.
-    # Logic is based on:
-    # https://github.com/apache/kafka/blob/trunk/core/src/main/scala/kafka/coordinator/GroupMetadataManager.scala
+    # Logic is based on
+    # https://github.com/apache/kafka/blob/trunk/core/src/main/scala/kafka/coordinator/group/GroupMetadataManager.scala
     # 
     # Author: Dmitry Andrianov
     # 
