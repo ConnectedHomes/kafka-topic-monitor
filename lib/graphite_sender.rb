@@ -1,3 +1,5 @@
+require_relative 'metrics'
+
 module HiveHome
 
   ##
@@ -8,10 +10,14 @@ module HiveHome
   # Author: Dmitry Andrianov
   #
   class GraphiteSender
+
+    attr_reader :metrics
+
     def initialize(server, metric_base)
       @host, @port = server.split(':', 2)
       @port ||= 2003
       @metric_base = metric_base
+      @metrics = KafkaTopicMonitor::Metrics.new
     end
 
     #====Parameters:
@@ -19,6 +25,7 @@ module HiveHome
     # metric_name:: Array<String> - components of metric name. Will be combined into dot-delimited string.
     # value::       Integer - metric reading.
     def publish(time, metric_name, value)
+      @metrics.increment('publish')
       metric = metric_name.collect { |p| escape(p) }.join('.')
       metric = @metric_base + '.' + metric unless @metric_base.nil?
       connect
@@ -26,6 +33,7 @@ module HiveHome
         @socket.puts "#{metric} #{value} #{time.to_i}"
       rescue => e
         puts "[#{Time.now}] Error writing to metrics socket: #{e.class} - #{e.message}"
+        @metrics.increment('exceptions')
         close
       end
     end
@@ -46,6 +54,7 @@ module HiveHome
         @socket.close
       rescue => e
         puts "[#{Time.now}] Error closing metrics socket: #{e.class} - #{e.message}"
+        @metrics.increment('exceptions')
       end
       @socket = nil
     end

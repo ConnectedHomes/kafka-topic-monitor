@@ -2,6 +2,7 @@ require 'kafka'
 require 'ostruct'
 require_relative 'kafka_decoder'
 require_relative 'consumer_monitor'
+require_relative 'metrics'
 
 module HiveHome
   module KafkaTopicMonitor
@@ -16,6 +17,7 @@ module HiveHome
       def initialize(sender, options)
         @sender  = sender
         @opts = options
+        @metrics = Metrics.new
       end
 
       def run
@@ -42,12 +44,16 @@ module HiveHome
           rescue => e
             puts "[#{Time.now}] Error in reporter main loop: #{e.class} - #{e.message}"
             puts e.backtrace
+            @metrics.increment('exceptions')
           end
           sleep @opts.interval
         end
       end
 
       def report
+        @metrics.increment('runs')
+report_internal_metrics                                      if @opts.report_internal_metrics
+
         time             = Time.new
         consumer_offsets = @consumer_monitor.get_consumer_offsets
         topic_offsets    = @data_retriever.last_offsets
@@ -56,9 +62,24 @@ module HiveHome
         report_consumer_offsets(time, consumer_offsets)              if @opts.report_consumer_offsets
         report_partition_lags(time, consumer_offsets, topic_offsets) if [:both, :partition].include? @opts.report_consumer_lag
         report_topic_lags(time, consumer_offsets, topic_offsets)     if [:both, :total]    .include? @opts.report_consumer_lag
+
+        report_internal_metrics                                      if @opts.report_internal_metrics
       end
 
       private
+
+      def report_internal_metrics
+        report_metrics 'ConsumerDataMonitor', @consumer_monitor.metrics
+        report_metrics 'GraphiteSender', @sender.metrics
+        report_metrics 'Reporter', @metrics
+      end
+
+      def report_metrics(base_name, metrics)
+        time = Time.new
+        metrics.get_metrics.each { |name, value|
+          @sender.publish(time, ['internal', base_name, *name], value)
+        }
+      end
 
       def report_end_offsets(time, topic_offsets)
         topic_offsets.each do |topic, partition_offsets|
