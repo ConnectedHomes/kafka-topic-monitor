@@ -50,19 +50,16 @@ group.CONSUMER_GROUP.topic.TOPIC_NAME.partition.N.consumer_offset
 ```
 
 ### --internal-metrics
-Reports monitor's internal stats that can be useful to spot problems like it regularly losing track of consumer offsets because of exceptions etc :
+Reports monitor's internal stats that can be useful to spot problems like it regularly losing track of consumer offsets because of exceptions etc:
 ```
-internal.ConsumerDataMonitor.messages_received
-internal.ConsumerDataMonitor.exceptions
-internal.ConsumerDataMonitor.offsets_received.total
-internal.ConsumerDataMonitor.offsets_received.group.CONSUMER_GROUP.total
-internal.ConsumerDataMonitor.offsets_received.group.CONSUMER_GROUP.topic.TOPIC_NAME.total
-internal.ConsumerDataMonitor.offsets_received.group.CONSUMER_GROUP.topic.TOPIC_NAME.partition.N
+internal.Reporter.runs
+internal.Reporter.exceptions
 
 internal.GraphiteSender.publish
 internal.GraphiteSender.exceptions
 
-internal.Reporter.reports
-internal.Reporter.exceptions
+internal.ConsumerDataMonitor.messages.received
+internal.ConsumerDataMonitor.offsets.received
+internal.ConsumerDataMonitor.exceptions
 ```
 

@@ -29,7 +29,7 @@ module HiveHome
             rescue => e
               puts "[#{Time.now}] Error in consumer data monitor: #{e.class} - #{e.message}"
               puts e.backtrace
-              @metrics.increment('exceptions')
+              @metrics.increment(['exceptions'])
             end
             sleep 15
           end
@@ -52,17 +52,14 @@ module HiveHome
       def run
         @kafka.each_message(topic: '__consumer_offsets', start_from_beginning: false, max_wait_time: 0) do |message|
 
-          @metrics.increment('messages_received')
+          @metrics.increment(['messages', 'count'])
 
           key = Decoder.decode_key(message.key)
           if key.is_a? GroupTopicPartition
             # Consumer offset
             offset = Decoder.decode_offset(message.value)
 
-            @metrics.increment('offsets_received', 'total')
-            @metrics.increment('offsets_received', 'group', key.group, 'total')
-            @metrics.increment('offsets_received', 'group', key.group, 'topic', key.topic, 'total')
-            @metrics.increment('offsets_received', 'group', key.group, 'topic', key.topic, 'partition', key.partition)
+            @metrics.increment(['offsets', 'count'])
 
             register_consumer_offset(key.group, key.topic, key.partition, offset.offset)
           end
