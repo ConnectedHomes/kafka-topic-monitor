@@ -45,7 +45,7 @@ module HiveHome
       end
 
       def report
-        timer = @metrics.timer(['run']).start
+        timer = @metrics.timer(['report']).start
         begin
           report_kafka_metrics
         rescue => e

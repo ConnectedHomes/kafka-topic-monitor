@@ -52,14 +52,14 @@ module HiveHome
       def run
         @kafka.each_message(topic: '__consumer_offsets', start_from_beginning: false, max_wait_time: 0) do |message|
 
-          @metrics.increment(['messages', 'count'])
+          @metrics.increment(['messages'])
 
           key = Decoder.decode_key(message.key)
           if key.is_a? GroupTopicPartition
             # Consumer offset
             offset = Decoder.decode_offset(message.value)
 
-            @metrics.increment(['offsets', 'count'])
+            @metrics.increment(['offset', 'update'])
 
             register_consumer_offset(key.group, key.topic, key.partition, offset.offset)
           end

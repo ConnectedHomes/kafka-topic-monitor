@@ -122,10 +122,10 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
 
     @reporter.report
 
-    expect(@sender.results['internal.Reporter.run.count']).to eq(1)
-    expect(@sender.results).to have_key('internal.Reporter.run.min')
-    expect(@sender.results).to have_key('internal.Reporter.run.avg')
-    expect(@sender.results).to have_key('internal.Reporter.run.max')
+    expect(@sender.results['internal.Reporter.report.count']).to eq(1)
+    expect(@sender.results).to have_key('internal.Reporter.report.min')
+    expect(@sender.results).to have_key('internal.Reporter.report.avg')
+    expect(@sender.results).to have_key('internal.Reporter.report.max')
     expect(@sender.results).to have_key('internal.GraphiteSender.some_sender_counter_metric')
     expect(@sender.results).to have_key('internal.ConsumerDataMonitor.some_monitor_metric')
   end
