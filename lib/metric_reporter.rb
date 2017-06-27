@@ -39,35 +39,39 @@ module HiveHome
         end
 
         while true
-
-          timer = @metrics.timer(['run']).start
-          begin
-            report
-          rescue => e
-            puts "[#{Time.now}] Error in reporter main loop: #{e.class} - #{e.message}"
-            puts e.backtrace
-            @metrics.increment(['exceptions'])
-          ensure
-            timer.stop
-          end
-
-          # Report internal metrics separately from the main reporting code so it is not
-          # affected by Kafka connection issues etc
-          if @opts.report_internal_metrics then
-            begin
-              report_internal_metrics
-            rescue => e
-              puts "[#{Time.now}] Error in reporter main loop: #{e.class} - #{e.message}"
-              puts e.backtrace
-              @metrics.increment(['exceptions'])
-            end
-          end
-
+          report
           sleep @opts.interval
         end
       end
 
       def report
+        timer = @metrics.timer(['run']).start
+        begin
+          report_kafka_metrics
+        rescue => e
+          puts "[#{Time.now}] Error in reporter main loop: #{e.class} - #{e.message}"
+          puts e.backtrace
+          @metrics.increment(['exceptions'])
+        ensure
+          timer.stop
+        end
+
+        # Report internal metrics separately from the main reporting code so it is not
+        # affected by Kafka connection issues etc
+        if @opts.report_internal_metrics then
+          begin
+            report_internal_metrics
+          rescue => e
+            puts "[#{Time.now}] Error in reporter main loop: #{e.class} - #{e.message}"
+            puts e.backtrace
+            @metrics.increment(['exceptions'])
+          end
+        end
+      end
+
+      private
+
+      def report_kafka_metrics
         time             = Time.new
         consumer_offsets = @consumer_monitor.get_consumer_offsets
         topic_offsets    = @data_retriever.last_offsets
@@ -78,8 +82,6 @@ module HiveHome
         report_topic_lags(time, consumer_offsets, topic_offsets)     if [:both, :total]    .include? @opts.report_consumer_lag
       end
 
-      private
-
       def report_internal_metrics
         report_metrics 'ConsumerDataMonitor', @consumer_monitor.metrics
         report_metrics 'GraphiteSender', @sender.metrics
@@ -87,6 +89,7 @@ module HiveHome
       end
 
       def report_metrics(base_name, metrics)
+        return if metrics.nil?
         time = Time.new
         metrics.get_metrics.each { |name, value|
           @sender.publish(time, ['internal', base_name, *name], value)

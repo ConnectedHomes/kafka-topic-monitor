@@ -1,8 +1,10 @@
 require 'ostruct'
 require_relative '../lib/metric_reporter'
+require_relative '../lib/metrics'
  
 class SenderMock
   attr_reader :results
+  attr_accessor :metrics
   def initialize
     @results = {}
   end
@@ -18,6 +20,7 @@ class MockKafkaClient
 end
 
 class MockConsumerDataMonitor
+  attr_accessor :metrics
   def start
   end
   def get_consumer_offsets
@@ -31,7 +34,8 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
     @options = OpenStruct.new(
       :report_end_offsets      => false,
       :report_consumer_offsets => false,
-      :report_consumer_lag     => :none
+      :report_consumer_lag     => :none,
+      :report_internal_metrics => false
     )
     @topic_data_retriever  = MockKafkaClient.new
     @consumer_data_monitor = MockConsumerDataMonitor.new
@@ -42,18 +46,12 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
   end
 
   it 'emits no metrics if no options are set' do
-    @options.report_end_offsets      = false
-    @options.report_consumer_offsets = false
-    @options.report_consumer_lag     = :none
-    
     @reporter.report
     expect(@sender.results).to be_empty
   end
 
   it 'emits end offsets' do
-    @options.report_end_offsets      = true
-    @options.report_consumer_offsets = false
-    @options.report_consumer_lag     = :none
+    @options.report_end_offsets = true
     
     @reporter.report
 
@@ -65,9 +63,7 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
   end
 
   it 'emits consumer offsets' do
-    @options.report_end_offsets      = false
     @options.report_consumer_offsets = true
-    @options.report_consumer_lag     = :none
     
     @reporter.report
 
@@ -79,9 +75,7 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
   end
 
   it 'emit partition lags' do
-    @options.report_end_offsets      = false
-    @options.report_consumer_offsets = false
-    @options.report_consumer_lag     = :partition
+    @options.report_consumer_lag = :partition
     
     @reporter.report
 
@@ -93,9 +87,7 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
   end
 
   it 'emit topic lags' do
-    @options.report_end_offsets      = false
-    @options.report_consumer_offsets = false
-    @options.report_consumer_lag     = :total
+    @options.report_consumer_lag = :total
     
     @reporter.report
 
@@ -105,9 +97,7 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
   end
 
   it 'emit partittion and topic lags' do
-    @options.report_end_offsets      = false
-    @options.report_consumer_offsets = false
-    @options.report_consumer_lag     = :both
+    @options.report_consumer_lag = :both
     
     @reporter.report
 
@@ -119,6 +109,27 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
     expect(@sender.results['group.XYZ.topic.ABC.partition.1.lag']).to eq(1)
     expect(@sender.results['group.XYZ.topic.ABC.total.lag']).to eq(11)
   end
+
+  it 'emits internal metrics' do
+    @options.report_internal_metrics = true
+
+    # Populate sender and monitor with arbitrary metrics - it is up to them to provide good ones
+    # Reporter's job is to collect and report their metrics from them
+    @sender.metrics = HiveHome::KafkaTopicMonitor::Metrics.new
+    @sender.metrics.increment(['some_sender_counter_metric'])
+    @consumer_data_monitor.metrics = HiveHome::KafkaTopicMonitor::Metrics.new
+    @consumer_data_monitor.metrics.increment(['some_monitor_metric'])
+
+    @reporter.report
+
+    expect(@sender.results['internal.Reporter.run.count']).to eq(1)
+    expect(@sender.results).to have_key('internal.Reporter.run.min')
+    expect(@sender.results).to have_key('internal.Reporter.run.avg')
+    expect(@sender.results).to have_key('internal.Reporter.run.max')
+    expect(@sender.results).to have_key('internal.GraphiteSender.some_sender_counter_metric')
+    expect(@sender.results).to have_key('internal.ConsumerDataMonitor.some_monitor_metric')
+  end
+
 
   # Since consumer offsets and end offsets are queried by different threads at slightly
   # different instants in time, topics and partitions may not match. That can happen,
