@@ -45,7 +45,11 @@ module HiveHome
       def run
         @kafka.each_message(topic: '__consumer_offsets', start_from_beginning: false, max_wait_time: 0) do |message|
           key = Decoder.decode_key(message.key)
-          if key.is_a? GroupTopicPartition && !message.value.nil? # nil message body means topic is marked for deletion
+
+          # nil message body means topic is marked for deletion
+          delete_topic(key.topic) if message.value.nil?
+
+          if key.is_a? GroupTopicPartition
             # Consumer offset
             offset = Decoder.decode_offset(message.value)
             register_consumer_offset(key.group, key.topic, key.partition, offset.offset)
@@ -63,6 +67,12 @@ module HiveHome
           topic_data = group_data[topic]
 
           topic_data[partition] = offset
+        end
+      end
+
+      def delete_topic(topic)
+        @mutex.synchronize do
+          @data.each_key { |group| @data[group].delete(topic) }
         end
       end
 
