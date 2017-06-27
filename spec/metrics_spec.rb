@@ -15,6 +15,12 @@ describe HiveHome::KafkaTopicMonitor::Metrics do
     expect(result[['path', 'counter2']]).to eq(1)
   end
 
+  it 'counters can be addressed by dot-separated names too' do
+    @metrics.increment('test.counter')
+    result = @metrics.get_metrics
+    expect(result[['test', 'counter']]).to eq(1)
+  end
+
   it 'provides stats for a single invocations' do
     timer = @metrics.timer(['timer']).start
     sleep 0.1
@@ -51,5 +57,12 @@ describe HiveHome::KafkaTopicMonitor::Metrics do
     expect(min).to be < avg
     expect(max).to be > avg
   end
+
+  it 'timers can be addressed by dot-separated names too' do
+    @metrics.timer('test.timer').start.stop
+    result = @metrics.get_metrics
+    expect(result[['test', 'timer', 'count']]).to eq(1)
+  end
+
 end
 

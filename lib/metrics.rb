@@ -9,26 +9,24 @@ module HiveHome
     class Metrics
 
       def initialize()
-        @counters = {}
-        @timers   = {}
+        @counters = Hash.new(0)
+        @timers   = Hash.new { |hash, key| hash[key] = Timer.new(key) }
         @mutex    = Mutex.new
       end
 
       # Increment a counter metric
       def increment(name)
+        name = name.split('.') if name.is_a? String
         @mutex.synchronize do
-          @counters[name] = (@counters[name] || 0) + 1
+          @counters[name] +=1
         end
       end
 
       def timer(name)
+        name = name.split('.') if name.is_a? String
         @mutex.synchronize do
+          # Will auto-create, see how hash is constructed
           @timers[name]
-          if @timers.has_key?(name) then
-            @timers[name]
-          else
-            @timers[name] = Timer.new(name)
-          end
         end
       end
 
@@ -64,9 +62,9 @@ module HiveHome
         TimerContext.new(self)
       end
 
-      def stop(timer)
+      def stop(timer_context)
         @mutex.synchronize do
-          duration = timer.duration
+          duration = timer_context.duration
 
           @duration += duration
           @total_count += 1
