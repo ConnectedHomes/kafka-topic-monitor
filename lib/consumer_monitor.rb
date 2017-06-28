@@ -1,5 +1,6 @@
 require 'kafka'
 require_relative 'kafka_decoder'
+require_relative 'metrics'
 
 module HiveHome
   module KafkaTopicMonitor
@@ -10,10 +11,14 @@ module HiveHome
     # Author: Dmitry Andrianov
     #
     class ConsumerDataMonitor
+
+      attr_reader :metrics
+
       def initialize(kafka)
         @kafka    = kafka
         @data     = {}
         @mutex    = Mutex.new
+        @metrics  = Metrics.new
       end
 
       def start
@@ -24,8 +29,9 @@ module HiveHome
             rescue => e
               puts "[#{Time.now}] Error in consumer data monitor: #{e.class} - #{e.message}"
               puts e.backtrace
+              @metrics.increment(['exceptions'])
             end
-            sleep 60
+            sleep 15
           end
         end
       end
@@ -35,15 +41,19 @@ module HiveHome
       #   { consumer-group => { topic  => { partition => consumer-offset } } }
       def get_consumer_offsets
         # Return a deep copy with a snapshot of data
-        @mutex.synchronize do
-          Marshal.load(Marshal.dump(@data))
+        data = @mutex.synchronize do
+          Marshal.dump(@data)
         end
+        Marshal.load(data)
       end
 
       private
 
       def run
         @kafka.each_message(topic: '__consumer_offsets', start_from_beginning: false, max_wait_time: 0) do |message|
+
+          @metrics.increment(['messages'])
+
           key = Decoder.decode_key(message.key)
 
           if message.value.nil? # nil message body means topic is marked for deletion
@@ -51,6 +61,9 @@ module HiveHome
           elsif key.is_a? GroupTopicPartition
             # Consumer offset
             offset = Decoder.decode_offset(message.value)
+
+            @metrics.increment(['offset', 'update'])
+
             register_consumer_offset(key.group, key.topic, key.partition, offset.offset)
           end
         end

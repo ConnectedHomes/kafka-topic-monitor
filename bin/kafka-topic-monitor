@@ -11,6 +11,7 @@ options.interval                = 60
 options.report_end_offsets      = false
 options.report_consumer_offsets = false
 options.report_consumer_lag     = false
+options.report_internal_metrics = false
 
 optparse = OptionParser.new do |opts|
   opts.separator ""
@@ -41,6 +42,9 @@ optparse = OptionParser.new do |opts|
           "  partition - report a value for each partition",
           "  total - single value across all partitions, total lag",
           "  both - both individual partition values and total lag") { |v| options.report_consumer_lag = v }
+  opts.on("--internal-metrics",
+          "Report monitor's internal stats (like how many messages on __consumer_offsets topic were handled",
+          "or how many items were sent to metrics server in total etc)") { |v| options.report_internal_metrics = v }
 end
 
 begin
