@@ -57,7 +57,10 @@ module HiveHome
           key = Decoder.decode_key(message.key)
 
           if message.value.nil? # nil message body means topic is marked for deletion
+
+            @metrics.increment(['topic', 'delete'])
             delete_topic(key.topic)
+
           elsif key.is_a? GroupTopicPartition
             # Consumer offset
             offset = Decoder.decode_offset(message.value)
