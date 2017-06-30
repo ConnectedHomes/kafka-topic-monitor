@@ -2,32 +2,15 @@ require 'ostruct'
 require 'stringio'
 require_relative '../lib/consumer_monitor'
 
-class MockKafkaClient
-  def each_message(**_)
-    yield(new_consumer_offset_message('group1', 'topic1', 0, 97))
-    yield(new_consumer_offset_message('group1', 'topic1', 0, 99))
-  end
-end
-
-# Emit two messages: a valid offset for a partition, followed by a nil offset for the same partition
-class MoclKafkaClient2
-  def each_message(**_)
-    yield(new_consumer_offset_message('group1', 'topic1', 0, 97))
-    yield(new_consumer_offset_message('group1', 'topic1', 0, nil))
-  end
-end
-
-# Nil partition for non-registered group & topic
-class MoclKafkaClient3
-  def each_message(**_)
-    yield(new_consumer_offset_message('group1', 'topic1', 0, nil))
-  end
-end
-
 describe HiveHome::KafkaTopicMonitor::ConsumerDataMonitor do
 
   it 'saves last offset' do
-    consumer_data_monitor = HiveHome::KafkaTopicMonitor::ConsumerDataMonitor.new(MockKafkaClient.new)
+    mock_kafka_client = Object.new
+    allow(mock_kafka_client).to receive(:each_message)
+        .and_yield(new_consumer_offset_message('group1', 'topic1', 0, 97))
+        .and_yield(new_consumer_offset_message('group1', 'topic1', 0, 99))
+
+    consumer_data_monitor = HiveHome::KafkaTopicMonitor::ConsumerDataMonitor.new(mock_kafka_client)
     thread = consumer_data_monitor.start
     sleep 0.1
     expect(consumer_data_monitor.get_consumer_offsets['group1']['topic1'][0]).to eq(99)
@@ -35,7 +18,12 @@ describe HiveHome::KafkaTopicMonitor::ConsumerDataMonitor do
   end
 
   it 'remove topic for nil offset' do
-    consumer_data_monitor = HiveHome::KafkaTopicMonitor::ConsumerDataMonitor.new(MoclKafkaClient2.new)
+    mock_kafka_client = Object.new
+    allow(mock_kafka_client).to receive(:each_message)
+        .and_yield(new_consumer_offset_message('group1', 'topic1', 0, 97))
+        .and_yield(new_consumer_offset_message('group1', 'topic1', 0, nil))
+
+    consumer_data_monitor = HiveHome::KafkaTopicMonitor::ConsumerDataMonitor.new(mock_kafka_client)
     thread = consumer_data_monitor.start
     sleep 0.1
     expect(consumer_data_monitor.get_consumer_offsets['group1']['topic1']).to eq(nil)
@@ -43,7 +31,11 @@ describe HiveHome::KafkaTopicMonitor::ConsumerDataMonitor do
   end
 
   it 'handle un-registered deleted topic' do
-    consumer_data_monitor = HiveHome::KafkaTopicMonitor::ConsumerDataMonitor.new(MoclKafkaClient3.new)
+    mock_kafka_client = Object.new
+    allow(mock_kafka_client).to receive(:each_message)
+        .and_yield(new_consumer_offset_message('group1', 'topic1', 0, nil))
+    
+    consumer_data_monitor = HiveHome::KafkaTopicMonitor::ConsumerDataMonitor.new(mock_kafka_client)
     thread = consumer_data_monitor.start
     sleep 0.1
     expect(consumer_data_monitor.get_consumer_offsets['group1']).to eq(nil)
