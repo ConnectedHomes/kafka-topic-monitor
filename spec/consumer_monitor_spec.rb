@@ -17,6 +17,13 @@ class MoclKafkaClient2
   end
 end
 
+# Nil partition for non-registered group & topic
+class MoclKafkaClient3
+  def each_message(**_)
+    yield(new_consumer_offset_message('group1', 'topic1', 0, nil))
+  end
+end
+
 describe HiveHome::KafkaTopicMonitor::ConsumerDataMonitor do
 
   it 'saves last offset' do
@@ -32,6 +39,14 @@ describe HiveHome::KafkaTopicMonitor::ConsumerDataMonitor do
     thread = consumer_data_monitor.start
     sleep 0.1
     expect(consumer_data_monitor.get_consumer_offsets['group1']['topic1']).to eq(nil)
+    thread.exit
+  end
+
+  it 'handle un-registered deleted topic' do
+    consumer_data_monitor = HiveHome::KafkaTopicMonitor::ConsumerDataMonitor.new(MoclKafkaClient3.new)
+    thread = consumer_data_monitor.start
+    sleep 0.1
+    expect(consumer_data_monitor.get_consumer_offsets['group1']).to eq(nil)
     thread.exit
   end
 

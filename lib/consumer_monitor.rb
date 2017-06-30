@@ -87,7 +87,10 @@ module HiveHome
 
       def delete_topic(topic)
         @mutex.synchronize do
-          @data.each_key { |group| @data[group].delete(topic) }
+          @data.each_key do |group| 
+            @data[group].delete(topic) unless @data[group].nil?
+            @data.delete(group) if @data[group].nil? # remove empty group
+          end
         end
       end
 
