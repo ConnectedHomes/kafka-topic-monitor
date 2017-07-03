@@ -55,13 +55,20 @@ module HiveHome
           @metrics.increment(['messages'])
 
           key = Decoder.decode_key(message.key)
+
           if key.is_a? GroupTopicPartition
-            # Consumer offset
-            offset = Decoder.decode_offset(message.value)
+            
+            if message.value.nil? # nil message body means topic is marked for deletion
+              @metrics.increment(['topic', 'delete'])
+              delete_topic(key.topic)
+            else
+              # Consumer offset
+              @metrics.increment(['offset', 'update'])
 
-            @metrics.increment(['offset', 'update'])
+              offset = Decoder.decode_offset(message.value)
 
-            register_consumer_offset(key.group, key.topic, key.partition, offset.offset)
+              register_consumer_offset(key.group, key.topic, key.partition, offset.offset)
+            end
           end
         end
       end
@@ -76,6 +83,17 @@ module HiveHome
           topic_data = group_data[topic]
 
           topic_data[partition] = offset
+        end
+      end
+
+      def delete_topic(topic)
+        @mutex.synchronize do
+          @data.each_key do |group|
+            unless @data[group].nil?
+              @data[group].delete(topic)
+              @data.delete(group) if @data[group].empty?
+            end
+          end
         end
       end
 
