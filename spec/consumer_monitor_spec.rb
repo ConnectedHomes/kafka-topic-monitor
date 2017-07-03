@@ -67,7 +67,7 @@ describe HiveHome::KafkaTopicMonitor::ConsumerDataMonitor do
     @mock_kafka_client.inject(new_consumer_offset_message('group1', 'topic1', 0, nil))
     @mock_kafka_client.wait_until_processed
 
-    expect(@consumer_data_monitor.get_consumer_offsets['group1']['topic1']).to eq(nil)
+    expect(@consumer_data_monitor.get_consumer_offsets['group1']).to eq(nil)
   end
 
   it 'handles un-registered deleted topic' do
