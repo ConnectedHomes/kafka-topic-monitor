@@ -63,9 +63,9 @@ module HiveHome
               delete_topic(key.topic)
             else
               # Consumer offset
-              offset = Decoder.decode_offset(message.value)
-
               @metrics.increment(['offset', 'update'])
+
+              offset = Decoder.decode_offset(message.value)
 
               register_consumer_offset(key.group, key.topic, key.partition, offset.offset)
             end
