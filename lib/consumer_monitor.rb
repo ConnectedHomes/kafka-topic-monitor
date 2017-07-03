@@ -56,18 +56,19 @@ module HiveHome
 
           key = Decoder.decode_key(message.key)
 
-          if message.value.nil? # nil message body means topic is marked for deletion
+          if key.is_a? GroupTopicPartition
+            
+            if message.value.nil? # nil message body means topic is marked for deletion
+              @metrics.increment(['topic', 'delete'])
+              delete_topic(key.topic)
+            else
+              # Consumer offset
+              offset = Decoder.decode_offset(message.value)
 
-            @metrics.increment(['topic', 'delete'])
-            delete_topic(key.topic)
+              @metrics.increment(['offset', 'update'])
 
-          elsif key.is_a? GroupTopicPartition
-            # Consumer offset
-            offset = Decoder.decode_offset(message.value)
-
-            @metrics.increment(['offset', 'update'])
-
-            register_consumer_offset(key.group, key.topic, key.partition, offset.offset)
+              register_consumer_offset(key.group, key.topic, key.partition, offset.offset)
+            end
           end
         end
       end
