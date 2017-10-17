@@ -14,8 +14,11 @@ class SenderMock
 end
 
 class MockKafkaClient
-  def last_offsets
+  def last_offsets_for(*topics)
     { 'ABC' => { 0 => 100, 1 => 100 } }
+  end
+  def topics
+    []
   end
 end
 
@@ -136,7 +139,7 @@ describe HiveHome::KafkaTopicMonitor::Reporter do
   # for example, when new topics are getting created at the time. The metrics reporter
   # needs to detect such mismatches and skip sending the corresponding metrics.
   it 'handles missing end offsets gracefully' do
-    allow(@topic_data_retriever).to receive(:last_offsets).and_return(
+    allow(@topic_data_retriever).to receive(:last_offsets_for).and_return(
       {
         'A' => { 0 => 100           },
         'B' => { 0 => 100           },
