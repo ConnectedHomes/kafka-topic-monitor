@@ -12,7 +12,7 @@ module HiveHome
     class KafkaClientWrapper
 
       #=====Parameters:
-      # seed_brokers:: Array<String> - list of brokers of the from "hostname:port"
+      # seed_brokers:: Array<String> - array of brokers, each of the form "hostname:port"
       # client_id::    String - identifier for this application
       def initialize(seed_brokers:, client_id: 'kafka-topic-monitor')
           @seed_brokers = seed_brokers
