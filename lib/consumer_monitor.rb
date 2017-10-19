@@ -1,6 +1,7 @@
 require 'kafka'
 require_relative 'kafka_decoder'
 require_relative 'metrics'
+require_relative 'client_wrapper'
 
 module HiveHome
   module KafkaTopicMonitor
