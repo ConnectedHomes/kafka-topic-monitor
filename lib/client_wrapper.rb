@@ -7,6 +7,8 @@ module HiveHome
     # Wrapper around a Kafka client that re-initilizes the client after a connection error.
     # Like the object it wraps, this class is not thread-safe.
     #
+    # Author: Talal Al-Tamimi
+    #
     class KafkaClientWrapper
 
       #=====Parameters:
