@@ -17,7 +17,7 @@ module HiveHome
       def initialize(seed_brokers:, client_id: 'kafka-topic-monitor')
           @seed_brokers = seed_brokers
           @client_id    = client_id
-          @client       = ::Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id)
+          init_client
       end
 
       def method_missing(sym, *args, &block)
@@ -27,10 +27,27 @@ module HiveHome
         puts e.backtrace
         puts "[#{Time.now}] Will try to reconnect"
 
-        @client.close unless @client.nil?
-        @client = ::Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id)
+        close_client
+        init_client
         nil
       end
+    end
+
+    private
+
+    def init_client
+      # This doesn't actually establish any connections to brokers. Connections are made the first
+      # time a request-sending method is called.
+      @client = ::Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id)
+    end
+
+    def close_client
+        beging
+          @client.close unless @client.nil?
+          @client = nil
+        rescue
+          puts "[#{Time.now}] Couldn't close old connection; ignoring. #{e.class} - #{e.message}"
+        end
     end
 
   end
