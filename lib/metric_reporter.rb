@@ -74,13 +74,8 @@ module HiveHome
       def report_kafka_metrics
         time             = Time.new
         consumer_offsets = @consumer_monitor.get_consumer_offsets
-        
-        all_topics = @data_retriever.topics
-        return if all_topics.nil?
-        
-        all_topics    = all_topics - ['__consumer_offsets']
-        topic_offsets = @data_retriever.last_offsets_for(*all_topics)
-        return if topic_offsets.nil?
+        all_topics       = @data_retriever.topics - ['__consumer_offsets']
+        topic_offsets    = @data_retriever.last_offsets_for(*all_topics)
 
         report_end_offsets(time, topic_offsets)                      if @opts.report_end_offsets
         report_consumer_offsets(time, consumer_offsets)              if @opts.report_consumer_offsets

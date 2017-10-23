@@ -24,31 +24,28 @@ module HiveHome
         @client.send(sym, *args, &block)
       rescue Kafka::ConnectionError => e
         puts "[#{Time.now}] Connection error: #{e.class} - #{e.message}"
-        puts e.backtrace
         puts "[#{Time.now}] Will try to reconnect"
 
         close_client
         init_client
-        nil
+        raise e
       end
+
+      private
+
+      def init_client
+        # This doesn't actually establish any connections to brokers. Connections are made the first
+        # time a request-sending method is called.
+        @client = ::Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id)
+      end
+
+      def close_client
+        @client.close unless @client.nil?
+        @client = nil
+      rescue
+        puts "[#{Time.now}] Couldn't close old connection; ignoring. #{e.class} - #{e.message}"
+      end
+
     end
-
-    private
-
-    def init_client
-      # This doesn't actually establish any connections to brokers. Connections are made the first
-      # time a request-sending method is called.
-      @client = ::Kafka.new(seed_brokers: @seed_brokers, client_id: @client_id)
-    end
-
-    def close_client
-        beging
-          @client.close unless @client.nil?
-          @client = nil
-        rescue
-          puts "[#{Time.now}] Couldn't close old connection; ignoring. #{e.class} - #{e.message}"
-        end
-    end
-
   end
 end
