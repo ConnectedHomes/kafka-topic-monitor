@@ -11,6 +11,8 @@ module HiveHome
     #
     class KafkaClientWrapper
 
+      RESET_ON_CONNECTION_ERROR = true
+
       #=====Parameters:
       # seed_brokers:: Array<String> - array of brokers, each of the form "hostname:port"
       # client_id::    String - identifier for this application
@@ -23,11 +25,11 @@ module HiveHome
       def method_missing(sym, *args, &block)
         @client.send(sym, *args, &block)
       rescue Kafka::ConnectionError => e
-        puts "[#{Time.now}] Connection error: #{e.class} - #{e.message}"
-        puts "[#{Time.now}] Will try to reconnect"
-
-        close_client
-        init_client
+        if RESET_ON_CONNECTION_ERROR
+          puts "[#{Time.now}] Connection error #{e.class}, will try to reconnect - #{e.message}"
+          close_client
+          init_client
+        end
         raise e
       end
 
