@@ -39,8 +39,12 @@ module HiveHome
         end
 
         while true
+          start_time = Time.now
           report
-          sleep @opts.interval
+          processing_duration = (Time.now - start_time).to_i
+
+          # Take a modulus, so if processing exceeds interval then we just skip a firing
+          sleep(@opts.interval - (processing_duration % @opts.interval))
         end
       end
 
