@@ -26,8 +26,8 @@ module HiveHome
         # so we need two clients - one for getting consumer offsets and one for getting topic end offsets
         # Depending on reporting options combination, we could avoid creating one of them but it is not a big deal
         # as no connection is established at this moment.
-        kafka1 = KafkaClientWrapper.new(seed_brokers: @opts.brokers)
-        kafka2 = KafkaClientWrapper.new(seed_brokers: @opts.brokers)
+        kafka1 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
+        kafka2 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
 
         @data_retriever   = kafka1
         @consumer_monitor = ConsumerDataMonitor.new(kafka2)
