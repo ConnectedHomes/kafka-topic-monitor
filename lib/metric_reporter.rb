@@ -42,7 +42,7 @@ module HiveHome
           start_time = Time.now
           report
           duration = (Time.now - start_time).to_i
-          sleep(@opts.interval - duration) unless duration >= @opts.interval || duration < 0
+          sleep(@opts.interval - [0, duration].max) unless duration >= @opts.interval
         end
       end
 
