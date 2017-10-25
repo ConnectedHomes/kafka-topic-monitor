@@ -39,8 +39,13 @@ module HiveHome
         end
 
         while true
+          start_time = Time.now
           report
-          sleep @opts.interval
+          delay = @opts.interval - (Time.now - start_time)
+
+          # Make sure delay is non-negative and is capped at @opts.interval (delay can grow beyond @opts.interval
+          # if processing time becomes negative, which can happen if system clock changes during reporting cycle).
+          sleep([[delay, 0].max, @opts.interval].min)
         end
       end
 
