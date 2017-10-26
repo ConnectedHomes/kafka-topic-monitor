@@ -79,7 +79,8 @@ module HiveHome
       def report_kafka_metrics
         time             = Time.new
         consumer_offsets = @consumer_monitor.get_consumer_offsets
-        topic_offsets    = @data_retriever.last_offsets
+        all_topics       = @data_retriever.topics - ['__consumer_offsets']
+        topic_offsets    = @data_retriever.last_offsets_for(*all_topics)
 
         report_end_offsets(time, topic_offsets)                      if @opts.report_end_offsets
         report_consumer_offsets(time, consumer_offsets)              if @opts.report_consumer_offsets
@@ -157,42 +158,5 @@ module HiveHome
       end
 
     end
-  end
-end
-
-# This is a temporary fix for https://github.com/zendesk/ruby-kafka/issues/311
-# until we can successfully submit a fix to the ruby-kafka library.
-module Kafka
-  class Client
-
-    # Fetches end offests for specified topics.
-    #
-    # @param topics [String, Array<String>] single topic name or array of topic names.
-    #   nil means all topics will be fetched.
-    #
-    # @return [Hash] {
-    #     topic_name [String] => {
-    #       partition_id [Integer] => end_offset [Integer], ...
-    #     }, ...
-    #   }
-    def last_offsets(topics = nil)
-      topics   = [topics] if !topics.nil? && topics.is_a?(String)
-      topics ||= self.topics
-      @cluster.add_target_topics(topics)
-
-      result = {}
-      topics.each do |topic|
-        partition_ids = @cluster.partitions_for(topic).collect(&:partition_id)
-        begin
-          offsets       = @cluster.resolve_offsets(topic, partition_ids, :latest)
-          result[topic] = offsets.collect { |k, v| [k, v - 1] } .to_h
-        rescue ProtocolError
-          @cluster.mark_as_stale!
-          raise
-        end
-      end
-      result
-    end
-
   end
 end

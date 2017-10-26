@@ -14,6 +14,10 @@ module HiveHome
 
       attr_reader :metrics
 
+      #====Parameters:
+      # kafka:: Kafka::Client - initialization signifies a transfer of ownership. This means the
+      #   lifecycle of the kafka client, including its proper termination, is now the reponsibilty
+      #   of ConsumerDataMonitor.
       def initialize(kafka)
         @kafka    = kafka
         @data     = {}
