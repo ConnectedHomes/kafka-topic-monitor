@@ -12,17 +12,19 @@ module HiveHome
     #
     class ConsumerDataMonitor
 
+      def log
+        KafkaTopicMonitor.logger
+      end
+
       attr_reader :metrics
 
       # @param kafka [Kafka::Client] initialization signifies a transfer of ownership. This means the lifecycle of the
       #   kafka client, including its proper termination, is now the responsibility of ConsumerDataMonitor.
-      # @param logger [Logger]
-      def initialize(kafka, logger)
+      def initialize(kafka)
         @kafka    = kafka
         @data     = {}
         @mutex    = Mutex.new
         @metrics  = Metrics.new
-        @logger   = logger
       end
 
       def start
@@ -34,12 +36,12 @@ module HiveHome
               # PT1-2605: temporary patch until issue is fixed in ruby-kafka library
               # https://github.com/zendesk/ruby-kafka/issues/610
               # https://github.com/zendesk/ruby-kafka/pull/609
-              @logger.error("Error in consumer data monitor: __consumer_offsets topic not found on broker. Was it reassigned?")
-              @logger.error("Marking cluster as stale")
+              log.error("Error in consumer data monitor: __consumer_offsets topic not found on broker. Was it reassigned?")
+              log.info("Marking cluster as stale")
               @kafka.instance_variable_get(:@cluster).mark_as_stale!
             rescue => e
-              @logger.error("Error in consumer data monitor: #{e.class} - #{e.message}")
-              @logger.debug(e.backtrace.join("\n"))
+              log.error("Error in consumer data monitor: #{e.class} - #{e.message}")
+              log.debug(e.backtrace.join("\n"))
               @metrics.increment(['exceptions'])
             end
             sleep 15

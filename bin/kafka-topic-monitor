@@ -57,9 +57,17 @@ rescue OptionParser::InvalidOption, OptionParser::MissingArgument
   exit
 end
 
-logger = Logger.new(STDOUT)
-logger.level = Logger::ERROR
+module HiveHome
+  module KafkaTopicMonitor
+    @logger = Logger.new(STDOUT)
+    @logger.level = Logger::ERROR
 
-sender = HiveHome::GraphiteSender.new(options.metrics_server, options.metrics_base, logger)
-reporter = HiveHome::KafkaTopicMonitor::Reporter.new(sender, options, logger)
+    def self.logger
+      @logger
+    end
+  end
+end
+
+sender = HiveHome::GraphiteSender.new(options.metrics_server, options.metrics_base)
+reporter = HiveHome::KafkaTopicMonitor::Reporter.new(sender, options)
 reporter.run
