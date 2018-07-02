@@ -55,8 +55,11 @@ rescue OptionParser::InvalidOption, OptionParser::MissingArgument
   puts $!.to_s
   puts optparse
   exit
-end     
+end
 
-sender   = HiveHome::GraphiteSender.new(options.metrics_server, options.metrics_base)
-reporter = HiveHome::KafkaTopicMonitor::Reporter.new(sender, options)
+logger = Logger.new(STDOUT)
+logger.level = Logger::ERROR
+
+sender = HiveHome::GraphiteSender.new(options.metrics_server, options.metrics_base, logger)
+reporter = HiveHome::KafkaTopicMonitor::Reporter.new(sender, options, logger)
 reporter.run
