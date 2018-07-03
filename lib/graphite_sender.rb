@@ -11,6 +11,10 @@ module HiveHome
   #
   class GraphiteSender
 
+    def log
+      KafkaTopicMonitor.logger
+    end
+
     attr_reader :metrics
 
     def initialize(server, metric_base)
@@ -20,10 +24,9 @@ module HiveHome
       @metrics = KafkaTopicMonitor::Metrics.new
     end
 
-    #====Parameters:
-    # time::        Integer - number of seconds from the Epoch (1-Jan-1970 0:00 GMT).
-    # metric_name:: Array<String> - components of metric name. Will be combined into dot-delimited string.
-    # value::       Integer - metric reading.
+    # @param time [Integer] number of seconds from the Epoch (1-Jan-1970 0:00 GMT).
+    # @param metric_name [Array<String>] components of metric name. Will be combined into dot-delimited string.
+    # @param value [Integer] metric reading.
     def publish(time, metric_name, value)
       @metrics.increment(['publish', 'count'])
       metric = metric_name.collect { |p| escape(p) }.join('.')
@@ -32,7 +35,7 @@ module HiveHome
       begin
         @socket.puts "#{metric} #{value} #{time.to_i}"
       rescue => e
-        puts "[#{Time.now}] Error writing to metrics socket: #{e.class} - #{e.message}"
+        log.error("Error writing to metrics socket: #{e.class} - #{e.message}")
         @metrics.increment(['exceptions'])
         close
       end
@@ -53,7 +56,7 @@ module HiveHome
       begin
         @socket.close
       rescue => e
-        puts "[#{Time.now}] Error closing metrics socket: #{e.class} - #{e.message}"
+        log.error("Error closing metrics socket: #{e.class} - #{e.message}")
         @metrics.increment(['exceptions'])
       end
       @socket = nil

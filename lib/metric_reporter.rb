@@ -6,7 +6,7 @@ require_relative 'metrics'
 
 module HiveHome
   module KafkaTopicMonitor
-    
+
     ##
     # The main functionality of this application. This class repeatedly queries Kafka for consumer offset metrics
     # and publishes the result via the Graphite metric format.
@@ -16,7 +16,7 @@ module HiveHome
     class Reporter
       def initialize(sender, options)
         @sender  = sender
-        @opts = options
+        @opts    = options
         @metrics = Metrics.new
       end
 
@@ -26,8 +26,8 @@ module HiveHome
         # so we need two clients - one for getting consumer offsets and one for getting topic end offsets
         # Depending on reporting options combination, we could avoid creating one of them but it is not a big deal
         # as no connection is established at this moment.
-        kafka1 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
-        kafka2 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__))
+        kafka1 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__), logger: log)
+        kafka2 = ::Kafka.new(seed_brokers: @opts.brokers, client_id: File.basename(__FILE__), logger: log)
 
         @data_retriever   = kafka1
         @consumer_monitor = ConsumerDataMonitor.new(kafka2)
@@ -54,8 +54,8 @@ module HiveHome
         begin
           report_kafka_metrics
         rescue => e
-          puts "[#{Time.now}] Error in reporter main loop: #{e.class} - #{e.message}"
-          puts e.backtrace
+          log.error("Error in reporter main loop: #{e.class} - #{e.message}")
+          log.error(e.backtrace.join("\n"))
           @metrics.increment(['exceptions'])
         ensure
           timer.stop
@@ -67,8 +67,8 @@ module HiveHome
           begin
             report_internal_metrics
           rescue => e
-            puts "[#{Time.now}] Error in reporter main loop: #{e.class} - #{e.message}"
-            puts e.backtrace
+            log.error("Error in reporter main loop: #{e.class} - #{e.message}")
+            log.error(e.backtrace.join("\n"))
             @metrics.increment(['exceptions'])
           end
         end
@@ -157,6 +157,9 @@ module HiveHome
         end
       end
 
+      def log
+        KafkaTopicMonitor.logger
+      end
     end
   end
 end
