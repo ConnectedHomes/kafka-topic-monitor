@@ -41,7 +41,7 @@ module HiveHome
               @kafka.instance_variable_get(:@cluster).mark_as_stale!
             rescue => e
               log.error("Error in consumer data monitor: #{e.class} - #{e.message}")
-              log.debug(e.backtrace.join("\n"))
+              log.error(e.backtrace.join("\n"))
               @metrics.increment(['exceptions'])
             end
             sleep 15

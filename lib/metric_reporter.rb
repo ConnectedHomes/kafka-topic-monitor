@@ -55,7 +55,7 @@ module HiveHome
           report_kafka_metrics
         rescue => e
           log.error("Error in reporter main loop: #{e.class} - #{e.message}")
-          log.debug(e.backtrace.join("\n"))
+          log.error(e.backtrace.join("\n"))
           @metrics.increment(['exceptions'])
         ensure
           timer.stop
@@ -68,7 +68,7 @@ module HiveHome
             report_internal_metrics
           rescue => e
             log.error("Error in reporter main loop: #{e.class} - #{e.message}")
-            log.debug(e.backtrace.join("\n"))
+            log.error(e.backtrace.join("\n"))
             @metrics.increment(['exceptions'])
           end
         end

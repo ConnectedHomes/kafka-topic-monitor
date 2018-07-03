@@ -60,7 +60,7 @@ end
 module HiveHome
   module KafkaTopicMonitor
     @logger = Logger.new(STDOUT)
-    @logger.level = Logger::ERROR
+    @logger.level = Logger::INFO
 
     def self.logger
       @logger
