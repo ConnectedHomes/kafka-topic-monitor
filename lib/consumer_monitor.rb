@@ -32,13 +32,6 @@ module HiveHome
           while true
             begin
               run
-            rescue Kafka::UnknownTopicOrPartition => e
-              # PT1-2605: temporary patch until issue is fixed in ruby-kafka library
-              # https://github.com/zendesk/ruby-kafka/issues/610
-              # https://github.com/zendesk/ruby-kafka/pull/609
-              log.error("Error in consumer data monitor: __consumer_offsets topic not found on broker. Was it reassigned?")
-              log.info("Marking cluster as stale")
-              @kafka.instance_variable_get(:@cluster).mark_as_stale!
             rescue => e
               log.error("Error in consumer data monitor: #{e.class} - #{e.message}")
               log.error(e.backtrace.join("\n"))

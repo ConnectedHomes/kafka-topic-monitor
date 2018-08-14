@@ -7,7 +7,12 @@ The main purpose was to monitor consumer lag.
 Note that this tool was designed to be used with Kafka 0.9 new consumers only - the consumer offsets are read from Kafka's \__consumer_offset topic.
 
 ## Installation
-You need as least Ruby 2.1 because it is required by ruby-kafka. Then install the ruby-kafka itself:
+You need as least Ruby 2.1 because it is required by ruby-kafka. Then install the ruby-kafka itself, either via Bundler (recommended):
+
+```
+bundle install
+```
+or manually:
 ```
 sudo gem install ruby-kafka
 ```
@@ -62,5 +67,18 @@ internal.GraphiteSender.exceptions
 internal.ConsumerDataMonitor.messages
 internal.ConsumerDataMonitor.offset.update
 internal.ConsumerDataMonitor.exceptions
+```
+
+### How test locally
+
+Assuming you have two Kafka brokers running locally on ports 9092 and 9093, and assuming your metrics server is running locally on port 2003, then the following command, executed from the repository directory, will run the topic monitor:
+```
+bundle exec bin/kafka-topic-monitor \
+--broker localhost:9092 \
+--broker localhost:9093 \
+--consumer-lag both \
+--metrics-server localhost:2003 \
+--metrics-base 'dev.kafka.monitor' \
+--interval 3
 ```
 
