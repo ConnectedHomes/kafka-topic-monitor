@@ -79,8 +79,8 @@ module HiveHome
         consumer_offsets = @consumer_monitor.get_consumer_offsets
 
         # TODO: workaround for PT1-2707
-        # Remove the following rescue and retry logic after 3rd party library fix is released
-        # See https://github.com/zendesk/ruby-kafka/issues/642
+        # Remove the following rescue and retry logic after 3rd party library fix is released to their v0.6-stable branch
+        # See https://github.com/zendesk/ruby-kafka/issues/642 (PR in comments)
         attempts = 0
         begin
           attempts += 1
