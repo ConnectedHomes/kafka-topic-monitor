@@ -33,8 +33,7 @@ module HiveHome
             begin
               run
             rescue => e
-              log.error("Error in consumer data monitor: #{e.class} - #{e.message}")
-              log.error(e.backtrace.join("\n"))
+              log.error((["Error in consumer data monitor: #{e.class} - #{e.message}"] + e.backtrace).join("\n"))
               @metrics.increment(['exceptions'])
             end
             sleep 15
