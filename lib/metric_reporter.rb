@@ -75,26 +75,10 @@ module HiveHome
       private
 
       def report_kafka_metrics
-        time = Time.new
+        time             = Time.new
         consumer_offsets = @consumer_monitor.get_consumer_offsets
-
-        # TODO: workaround for PT1-2707
-        # Remove the following rescue and retry logic after 3rd party library fix is released to their v0.6-stable branch
-        # See https://github.com/zendesk/ruby-kafka/issues/642 (PR in comments)
-        attempts = 0
-        begin
-          attempts += 1
-          all_topics = @data_retriever.topics - ['__consumer_offsets']
-        rescue ::Kafka::ConnectionError => e
-          if attempts == 1
-            @data_retriever.instance_variable_get(:@cluster).mark_as_stale!
-            retry
-          else
-            raise e
-          end
-        end
-
-        topic_offsets = @data_retriever.last_offsets_for(*all_topics)
+        all_topics       = @data_retriever.topics - ['__consumer_offsets']
+        topic_offsets    = @data_retriever.last_offsets_for(*all_topics)
 
         report_end_offsets(time, topic_offsets)                      if @opts.report_end_offsets
         report_consumer_offsets(time, consumer_offsets)              if @opts.report_consumer_offsets
