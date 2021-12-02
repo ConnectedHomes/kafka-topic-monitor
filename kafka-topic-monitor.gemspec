@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) } # possible ['verify'] to ensure valid gem ??
   spec.require_paths = ['lib']
 
-  spec.add_development_dependency 'bundler', '~> 1.12'
-  spec.add_development_dependency 'rspec', '~> 3.4'
+  spec.add_development_dependency 'bundler', '>= 2.2.10'
+  spec.add_development_dependency 'rspec', '~> 3.7'
   spec.add_runtime_dependency 'ruby-kafka', '~> 0.7.2'
 end
