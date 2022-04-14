@@ -1,0 +1,39 @@
+PATH
+  remote: .
+  specs:
+    kafka-topic-monitor (1.2.5)
+      ruby-kafka (~> 1.4.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    diff-lcs (1.5.0)
+    digest-crc (0.6.4)
+      rake (>= 12.0.0, < 14.0.0)
+    rake (13.0.6)
+    rspec (3.11.0)
+      rspec-core (~> 3.11.0)
+      rspec-expectations (~> 3.11.0)
+      rspec-mocks (~> 3.11.0)
+    rspec-core (3.11.0)
+      rspec-support (~> 3.11.0)
+    rspec-expectations (3.11.0)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.11.0)
+    rspec-mocks (3.11.1)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.11.0)
+    rspec-support (3.11.0)
+    ruby-kafka (1.4.0)
+      digest-crc
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bundler (~> 2.1.0)
+  kafka-topic-monitor!
+  rspec (~> 3.4)
+
+BUNDLED WITH
+   2.1.4
