@@ -20,7 +20,7 @@ module HiveHome
             # Offset
             # group (string), topic (string), partition (int32)
             GroupTopicPartition.new decoder.string, decoder.string, decoder.int32
-          elsif schema == 2
+          elsif schema == 2 || schema == 3
             # Group metadata
             Group.new decoder.string
           else
@@ -33,7 +33,7 @@ module HiveHome
           return nil if value.nil?
           decoder = ::Kafka::Protocol::Decoder.from_string(value)
           schema = decoder.int16
-          if schema == 0 || schema == 1 then
+          if schema >= 0 && schema <= 3 then
             # Structure for schema=0:
             #   offset (int64), metadata (string), timestamp (int64)
             # Structure for schema=1:
@@ -51,7 +51,7 @@ module HiveHome
           return nil if value.nil?
           decoder = Kafka::Protocol::Decoder.from_string(value)
           schema = decoder.int16
-          if schema == 0 || schema == 1 then
+          if schema >= 0 && schema <= 3 then
             # Structure is:
             #   protocol_type (string), generation (int32), protocol (string), leader_key (nullable string), members[]
             # and each member is for schema=0
