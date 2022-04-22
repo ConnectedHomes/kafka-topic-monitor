@@ -69,17 +69,24 @@ module HiveHome
             #   member_id (string), client_id (string), client_host (string), session_timeout (int32), subscription (bytes), assignment (bytes)
             # and for schema=1
             #   member_id (string), client_id (string), client_host (string), rebalance_timeout (int32), session_timeout (int32), subscription (bytes), assignment (bytes)
-            GroupMetadata.new decoder.string, decoder.int32, decoder.string, decoder.string, decoder.array {
-              GroupMember.new(
-                member_id: decoder.string,
-                client_id: decoder.string,
-                client_host: decoder.string,
-                rebalance_timeout: (schema == 1) ? decoder.int32 : nil,
-                session_timeout: decoder.int32,
-                subscription: decoder.bytes,
-                assignment: decoder.bytes
-              )
-            }
+            GroupMetadata.new(
+              protocol_type:           decoder.string,
+              generation:              decoder.int32,
+              protocol:                decoder.string,
+              leader:                  decoder.string,
+              current_state_timestamp: nil,
+              members:                 decoder.array {
+                GroupMember.new(
+                  member_id:         decoder.string,
+                  group_instance_id: nil,
+                  client_id:         decoder.string,
+                  client_host:       decoder.string,
+                  rebalance_timeout: schema == 1 ? decoder.int32 : nil,
+                  session_timeout:   decoder.int32,
+                  subscription:      decoder.bytes,
+                  assignment:        decoder.bytes
+                )
+              })
           elsif schema == 2 || schema == 3
             # Structure is:
             #   protocol_type (string), generation (int32), protocol (string), leader (nullable string), current_state_timestamp (int64), members[]
@@ -87,18 +94,24 @@ module HiveHome
             #   member_id (string), client_id (string), client_host (string), rebalance_timeout (int32), session_timeout (int32), subscription (bytes), assignment (bytes)
             # and for schema = 3:
             #   member_id (string), group_instance_id (nullable string), client_id (string), client_host (string), rebalance_timeout (int32), session_timeout (int32), subscription (bytes), assignment (bytes)
-            GroupMetadata.new decoder.string, decoder.int32, decoder.string, decoder.string, decoder.int64, decoder.array {
-              GroupMember.new(
-                member_id: decoder.string,
-                group_instance_id: schema == 3 ? decoder.string : nil,
-                client_id: decoder.string,
-                client_host: decoder.string,
-                rebalance_timeout: decoder.int32,
-                session_timeout: decoder.int32,
-                subscription: decoder.bytes,
-                assignment: decoder.bytes
-              )
-            }
+            GroupMetadata.new(
+              protocol_type:           decoder.string,
+              generation:              decoder.int32,
+              protocol:                decoder.string,
+              leader:                  decoder.string,
+              current_state_timestamp: decoder.int64,
+              members:                 decoder.array {
+                GroupMember.new(
+                  member_id:         decoder.string,
+                  group_instance_id: schema == 3 ? decoder.string : nil,
+                  client_id:         decoder.string,
+                  client_host:       decoder.string,
+                  rebalance_timeout: decoder.int32,
+                  session_timeout:   decoder.int32,
+                  subscription:      decoder.bytes,
+                  assignment:        decoder.bytes
+                )
+              })
           else
             # Unknown
             raise "Unknown group metadata value schema #{schema}"
@@ -132,7 +145,7 @@ module HiveHome
 
     class GroupMetadata
       attr_reader :protocol_type, :generation, :protocol, :leader, :members
-      def initialize(protocol_type, generation, protocol, leader, current_state_timestamp = nil, members)
+      def initialize(protocol_type:, generation:, protocol:, leader:, current_state_timestamp:, members:)
         @protocol_type           = protocol_type
         @generation              = generation
         @protocol                = protocol
@@ -143,7 +156,7 @@ module HiveHome
     end
 
     class GroupMember
-      def initialize(member_id:, group_instance_id: nil, client_id:, client_host:, rebalance_timeout:, session_timeout:, subscription:, assignment:)
+      def initialize(member_id:, group_instance_id:, client_id:, client_host:, rebalance_timeout:, session_timeout:, subscription:, assignment:)
         @member_id         = member_id
         @group_instance_id = group_instance_id
         @client_id         = client_id
