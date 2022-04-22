@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    kafka-topic-monitor (1.2.5)
+    kafka-topic-monitor (1.2.6)
       ruby-kafka (~> 1.4.0)
 
 GEM
@@ -31,7 +31,6 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  bundler (~> 2.1.0)
   kafka-topic-monitor!
   rspec (~> 3.4)
 

@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = 'kafka-topic-monitor'
-  spec.version       = '1.2.5'
+  spec.version       = '1.2.6'
   spec.authors       = ['Dmitry Andrianov', 'Talal Al-Tamimi']
   spec.email         = ['dmitry.andrianov@hivehome.com', 'talal.al-tamimi@hivehome.com']
 
@@ -27,7 +27,6 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) } # possible ['verify'] to ensure valid gem ??
   spec.require_paths = ['lib']
 
-  spec.add_development_dependency 'bundler', '~> 2.1.0'
   spec.add_development_dependency 'rspec', '~> 3.4'
   spec.add_runtime_dependency 'ruby-kafka', '~> 1.4.0'
 end
